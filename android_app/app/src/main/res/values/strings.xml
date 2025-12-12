@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">NetReaper Remote</string>
+    <string name="scan_tab">SCAN</string>
+    <string name="recon_tab">RECON</string>
+    <string name="wireless_tab">WIRELESS</string>
+    <string name="web_tab">WEB</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="execute">Execute</string>
+    <string name="clear_log">Clear Log</string>
+    <string name="status">Status</string>
+    <string name="output">Output</string>
+    <string name="history">History</string>
+</resources>

@@ -37,9 +37,11 @@ NETREAPER is a modular Bash-based offensive security toolkit that unifies 70+ se
 git clone https://github.com/Nerds489/NETREAPER.git
 cd NETREAPER
 
-# Install (requires root for system-wide installation)
-sudo ./install.sh
+# Simplified system install (copies files, creates wrappers, + auto-installs tools/GUI)
+sudo ./install.sh --auto
 ```
+
+The `install.sh` wrapper delegates to `bin/netreaper-install`, which handles tool installation, system-wide symlinks, and dependency management. When you pass `--auto` the installer now runs `netreaper-install all` and `netreaper-install gui` automatically so the entire stack is ready with one command.
 
 The `install.sh` wrapper delegates to `bin/netreaper-install`, which handles tool installation, system-wide symlinks, and dependency management.
 
@@ -66,6 +68,40 @@ sudo NR_NON_INTERACTIVE=1 NR_FORCE_REINSTALL=1 ./reinstall-netreaper.sh
 ./netreaper --help
 ./netreaper-install --help
 ```
+
+---
+
+## GUI Frontend
+
+`NETREAPER` now includes a native PyQt6 frontend so every SCAN, RECON,
+WIRELESS, and WEB subworkflow is accessible without a terminal. The interface
+borrows the dark cyberpunk aesthetic from the CLI with command history,
+wireless helpers, and real-time output. To try it:
+
+```bash
+# Optional: create an isolated environment before installing dependencies
+python3 -m pip install PyQt6
+python3 gui/netreaper_gui.py
+```
+
+The GUI leverages the same underlying toolchain, so root privileges are still
+required when you run monitor-mode or privileged scans. The interface also keeps
+a running log/history so you can rerun commands, copy results, and keep a
+consistent workflow across tabs.
+
+---
+
+### Packaging and launcher
+
+The system installer now copies the `gui/` directory into the install root and
+creates a `netreaper-gui` wrapper beside `netreaper`. After running the
+system-wide installer (`sudo ./install.sh`), you can launch the GUI with
+`netreaper gui` or simply `netreaper-gui` (no additional arguments required).
+
+The CLI installer exposes a `gui` command so you can keep the PyQt6 dependency
+stack in sync with the rest of NETREAPER. Run `sudo netreaper-install gui` (or
+select `[G]` from the interactive installer) to install `PyQt6` / `PyQt6-sip`
+via `pip3`, then relaunch `netreaper gui` from the shell.
 
 ---
 

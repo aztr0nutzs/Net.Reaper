@@ -24,6 +24,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPT_FORCE=0
 OPT_USER=0
 OPT_UNINSTALL=0
+OPT_AUTO=0
 TOOL_INSTALL_ARGS=()
 
 _show_help() {
@@ -67,6 +68,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --uninstall)
             OPT_UNINSTALL=1
+            shift
+            ;;
+        --auto)
+            OPT_AUTO=1
             shift
             ;;
         --help|-h)
@@ -205,7 +210,7 @@ _do_uninstall() {
 
     # Remove wrappers
     for bindir in "${bins[@]}"; do
-        for wrapper in "$bindir/netreaper" "$bindir/netreaper-install"; do
+        for wrapper in "$bindir/netreaper" "$bindir/netreaper-install" "$bindir/netreaper-gui"; do
             if [[ -f "$wrapper" ]]; then
                 _log "Removing wrapper: $wrapper"
                 if rm -f "$wrapper" 2>/dev/null; then
@@ -355,6 +360,9 @@ _do_install() {
     cp -r "$SOURCE_DIR/bin" "$INSTALL_ROOT/"
     cp -r "$SOURCE_DIR/lib" "$INSTALL_ROOT/"
     cp -r "$SOURCE_DIR/modules" "$INSTALL_ROOT/"
+    if [[ -d "$SOURCE_DIR/gui" ]]; then
+        cp -r "$SOURCE_DIR/gui" "$INSTALL_ROOT/"
+    fi
 
     # Required files
     cp "$SOURCE_DIR/VERSION" "$INSTALL_ROOT/"
@@ -368,6 +376,9 @@ _do_install() {
     # Ensure bin scripts are executable
     chmod +x "$INSTALL_ROOT/bin/netreaper"
     chmod +x "$INSTALL_ROOT/bin/netreaper-install" 2>/dev/null || true
+    if [[ -f "$INSTALL_ROOT/gui/netreaper_gui.py" ]]; then
+        chmod +x "$INSTALL_ROOT/gui/netreaper_gui.py"
+    fi
 
     _log "Project files copied successfully"
 
@@ -375,7 +386,7 @@ _do_install() {
     mkdir -p "$BIN_DIR"
 
     # Remove any existing wrappers in target bin dir
-    rm -f "$BIN_DIR/netreaper" "$BIN_DIR/netreaper-install" 2>/dev/null || true
+    rm -f "$BIN_DIR/netreaper" "$BIN_DIR/netreaper-install" "$BIN_DIR/netreaper-gui" 2>/dev/null || true
 
     # Create netreaper wrapper
     _log "Creating wrapper: $BIN_DIR/netreaper"
@@ -401,6 +412,29 @@ export NETREAPER_ROOT="$INSTALL_ROOT"
 exec "\$NETREAPER_ROOT/bin/netreaper-install" "\$@"
 WRAPPER
         chmod 755 "$BIN_DIR/netreaper-install"
+    fi
+
+    if [[ -f "$INSTALL_ROOT/gui/netreaper_gui.py" ]]; then
+        _log "Creating wrapper: $BIN_DIR/netreaper-gui"
+        cat > "$BIN_DIR/netreaper-gui" << WRAPPER
+#!/usr/bin/env bash
+# NETREAPER GUI launcher - installed by install.sh
+# Install root: $INSTALL_ROOT
+
+export NETREAPER_ROOT="$INSTALL_ROOT"
+exec python3 "$NETREAPER_ROOT/gui/netreaper_gui.py" "$@"
+WRAPPER
+        chmod 755 "$BIN_DIR/netreaper-gui"
+    fi
+
+    if [[ $OPT_AUTO -eq 1 ]]; then
+        _log "Auto-installing tools and GUI dependencies"
+        NR_NON_INTERACTIVE=1 "$INSTALL_ROOT/bin/netreaper-install" all || {
+            _warn "Auto installation partially failed; rerun 'netreaper-install all' manually"
+        }
+        NR_NON_INTERACTIVE=1 "$INSTALL_ROOT/bin/netreaper-install" gui || {
+            _warn "GUI dependencies require manual 'netreaper-install gui'"
+        }
     fi
 
     # Handle PATH for user installs

@@ -132,6 +132,7 @@ Options:
 
 Commands:
   status          Show tool installation status
+  gui             Launch the PyQt6 GUI frontend
   scan <target>   Run a quick port scan
   wifi            WiFi operations
   stress          Stress testing (hping3, netem)
@@ -152,6 +153,7 @@ Examples:
   netreaper scan 192.168.1.1
   netreaper config show
   netreaper config set log_level DEBUG
+  netreaper gui
 
 Run without arguments to launch the interactive menu.
 EOF
@@ -276,6 +278,11 @@ main() {
         status)
             _show_status
             exit 0
+            ;;
+        gui)
+            shift
+            python3 "${NETREAPER_ROOT}/gui/netreaper_gui.py" "$@"
+            exit $?
             ;;
         scan)
             shift

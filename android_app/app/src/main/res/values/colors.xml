@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#c9d1ff</color>
+    <color name="primary_dark">#4b00ff</color>
+    <color name="primary_variant">#6c34ff</color>
+    <color name="secondary">#00c6ff</color>
+    <color name="secondary_variant">#562dff</color>
+    <color name="background">#050510</color>
+    <color name="surface">#0e0b1f</color>
+    <color name="error">#ff4444</color>
+    <color name="on_primary">#050510</color>
+    <color name="on_secondary">#050510</color>
+    <color name="on_background">#c9d1ff</color>
+    <color name="on_surface">#c9d1ff</color>
+    <color name="on_error">#ffffff</color>
+    <color name="glow">#7c5dff</color>
+    <color name="hud_panel">#090b1d</color>
+    <color name="tab_selected">#1c1c5a</color>
+</resources>
