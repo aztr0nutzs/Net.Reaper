@@ -1,7 +1,5 @@
 package com.netreaper.remote
 
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.ktor.client.*
@@ -13,6 +11,9 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -38,21 +39,50 @@ data class AuthRequest(val password: String)
 data class AuthResponse(val token: String)
 
 class NetReaperViewModel : ViewModel() {
-    val target = mutableStateOf("")
-    val interface = mutableStateOf("")
-    val hostInput = mutableStateOf("")
-    val passwordInput = mutableStateOf("")
-    val log = mutableStateListOf<String>()
-    val connectionMessages = mutableStateListOf<String>()
-    val pairingFeedback = mutableStateListOf<String>()
-    val status = mutableStateOf("STANDBY")
-    val pulse = mutableStateOf(0)
-    val latency = mutableStateOf(10)
-    val connectionState = mutableStateOf(ConnectionState.DISCONNECTED)
-    val pairingCode = mutableStateOf("")
-    val remotePaired = mutableStateOf(false)
-    val guiPaired = mutableStateOf(false)
-    val connectedDevices = mutableStateListOf<String>()
+    private val _target = MutableStateFlow("")
+    val target: StateFlow<String> = _target.asStateFlow()
+
+    private val _networkInterface = MutableStateFlow("")
+    val networkInterface: StateFlow<String> = _networkInterface.asStateFlow()
+
+    private val _hostInput = MutableStateFlow("")
+    val hostInput: StateFlow<String> = _hostInput.asStateFlow()
+
+    private val _passwordInput = MutableStateFlow("")
+    val passwordInput: StateFlow<String> = _passwordInput.asStateFlow()
+
+    private val _log = MutableStateFlow<List<String>>(emptyList())
+    val log: StateFlow<List<String>> = _log.asStateFlow()
+
+    private val _connectionMessages = MutableStateFlow<List<String>>(emptyList())
+    val connectionMessages: StateFlow<List<String>> = _connectionMessages.asStateFlow()
+
+    private val _pairingFeedback = MutableStateFlow<List<String>>(emptyList())
+    val pairingFeedback: StateFlow<List<String>> = _pairingFeedback.asStateFlow()
+
+    private val _status = MutableStateFlow("STANDBY")
+    val status: StateFlow<String> = _status.asStateFlow()
+
+    private val _pulse = MutableStateFlow(0)
+    val pulse: StateFlow<Int> = _pulse.asStateFlow()
+
+    private val _latency = MutableStateFlow(10)
+    val latency: StateFlow<Int> = _latency.asStateFlow()
+
+    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
+    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+
+    private val _pairingCode = MutableStateFlow("")
+    val pairingCode: StateFlow<String> = _pairingCode.asStateFlow()
+
+    private val _remotePaired = MutableStateFlow(false)
+    val remotePaired: StateFlow<Boolean> = _remotePaired.asStateFlow()
+
+    private val _guiPaired = MutableStateFlow(false)
+    val guiPaired: StateFlow<Boolean> = _guiPaired.asStateFlow()
+
+    private val _connectedDevices = MutableStateFlow<List<String>>(emptyList())
+    val connectedDevices: StateFlow<List<String>> = _connectedDevices.asStateFlow()
 
     private val client = HttpClient(CIO) {
         install(WebSockets)
@@ -63,10 +93,26 @@ class NetReaperViewModel : ViewModel() {
 
     private var session: DefaultWebSocketSession? = null
 
+    fun setTarget(target: String) {
+        _target.value = target
+    }
+
+    fun setNetworkInterface(networkInterface: String) {
+        _networkInterface.value = networkInterface
+    }
+
+    fun setHostInput(hostInput: String) {
+        _hostInput.value = hostInput
+    }
+
+    fun setPasswordInput(passwordInput: String) {
+        _passwordInput.value = passwordInput
+    }
+
     fun connect(host: String, password: String) {
         viewModelScope.launch {
-            connectionState.value = ConnectionState.CONNECTING
-            status.value = "CONNECTING"
+            _connectionState.value = ConnectionState.CONNECTING
+            _status.value = "CONNECTING"
             try {
                 val token = authenticate(host, password)
                 if (token != null) {
@@ -75,25 +121,25 @@ class NetReaperViewModel : ViewModel() {
                         send(Frame.Text("{\"token\":\"$token\"}"))
                         val authResponse = incoming.receive() as? Frame.Text
                         if (authResponse?.readText()?.contains("authenticated") == true) {
-                            status.value = "CONNECTED"
-                            connectionState.value = ConnectionState.CONNECTED
+                            _status.value = "CONNECTED"
+                            _connectionState.value = ConnectionState.CONNECTED
                             addConnectionMessage("Authenticated to $host")
                             listenForMessages()
                         } else {
-                            log.add("Authentication failed")
+                            addLog("Authentication failed")
                             addConnectionMessage("Authentication failed for $host")
-                            connectionState.value = ConnectionState.DISCONNECTED
+                            _connectionState.value = ConnectionState.DISCONNECTED
                         }
                     }
                 } else {
-                    log.add("Authentication failed")
+                    addLog("Authentication failed")
                     addConnectionMessage("Authentication failed for $host")
-                    connectionState.value = ConnectionState.DISCONNECTED
+                    _connectionState.value = ConnectionState.DISCONNECTED
                 }
             } catch (e: Exception) {
-                log.add("Connection error: ${e.message}")
+                addLog("Connection error: ${e.message}")
                 addConnectionMessage("Connection error: ${e.message}")
-                connectionState.value = ConnectionState.DISCONNECTED
+                _connectionState.value = ConnectionState.DISCONNECTED
             }
         }
     }
@@ -106,7 +152,7 @@ class NetReaperViewModel : ViewModel() {
             }.body()
             response.token
         } catch (e: Exception) {
-            log.add("Auth error: ${e.message}")
+            addLog("Auth error: ${e.message}")
             null
         }
     }
@@ -121,8 +167,8 @@ class NetReaperViewModel : ViewModel() {
             }
             val response = sendPairRequest(host, deviceId, "remote")
             if (response != null) {
-                pairingCode.value = response.pairCode
-                remotePaired.value = true
+                _pairingCode.value = response.pairCode
+                _remotePaired.value = true
                 addPairingFeedback("Remote paired: ${response.pairCode}")
             } else {
                 addPairingFeedback("Remote pairing failed")
@@ -140,8 +186,8 @@ class NetReaperViewModel : ViewModel() {
             }
             val response = sendPairRequest(host, deviceId, "gui")
             if (response != null) {
-                pairingCode.value = response.pairCode
-                guiPaired.value = true
+                _pairingCode.value = response.pairCode
+                _guiPaired.value = true
                 addPairingFeedback("GUI paired: ${response.pairCode}")
             } else {
                 addPairingFeedback("GUI pairing failed")
@@ -168,12 +214,12 @@ class NetReaperViewModel : ViewModel() {
                 try {
                     val json = Json.parseToJsonElement(text).jsonObject
                     if (json.containsKey("output")) {
-                        log.add(json["output"]!!.jsonPrimitive.content)
+                        addLog(json["output"]!!.jsonPrimitive.content)
                     } else if (json.containsKey("error")) {
-                        log.add("Error: ${json["error"]!!.jsonPrimitive.content}")
+                        addLog("Error: ${json["error"]!!.jsonPrimitive.content}")
                     }
                 } catch (e: Exception) {
-                    log.add(text)
+                    addLog(text)
                 }
             }
         }
@@ -190,31 +236,35 @@ class NetReaperViewModel : ViewModel() {
         viewModelScope.launch {
             session?.close()
             session = null
-            status.value = "DISCONNECTED"
-            connectionState.value = ConnectionState.DISCONNECTED
+            _status.value = "DISCONNECTED"
+            _connectionState.value = ConnectionState.DISCONNECTED
             addConnectionMessage("Disconnected manually")
         }
     }
 
     private fun onConnectionClosed() {
-        connectionState.value = ConnectionState.DISCONNECTED
+        _connectionState.value = ConnectionState.DISCONNECTED
         if (status.value == "CONNECTED") {
-            status.value = "DISCONNECTED"
+            _status.value = "DISCONNECTED"
             addConnectionMessage("Remote bridge closed")
         }
     }
 
+    private fun addLog(message: String) {
+        _log.value = _log.value + message
+    }
+
     private fun addConnectionMessage(message: String) {
-        connectionMessages.add("${System.currentTimeMillis()}: $message")
-        if (connectionMessages.size > 20) {
-            connectionMessages.removeFirst()
+        _connectionMessages.value = _connectionMessages.value + "${System.currentTimeMillis()}: $message"
+        if (connectionMessages.value.size > 20) {
+            _connectionMessages.value = _connectionMessages.value.drop(1)
         }
     }
 
     private fun addPairingFeedback(message: String) {
-        pairingFeedback.add(message)
-        if (pairingFeedback.size > 12) {
-            pairingFeedback.removeFirst()
+        _pairingFeedback.value = _pairingFeedback.value + message
+        if (pairingFeedback.value.size > 12) {
+            _pairingFeedback.value = _pairingFeedback.value.drop(1)
         }
     }
 

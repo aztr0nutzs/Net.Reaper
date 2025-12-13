@@ -76,6 +76,10 @@ fun MainScreen(viewModel: NetReaperViewModel = viewModel()) {
 
 @Composable
 fun HUDPanel(viewModel: NetReaperViewModel) {
+    val status by viewModel.status.collectAsState()
+    val pulse by viewModel.pulse.collectAsState()
+    val latency by viewModel.latency.collectAsState()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -83,28 +87,30 @@ fun HUDPanel(viewModel: NetReaperViewModel) {
             .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("GRID STATUS: ${viewModel.status.value}", color = Color(0xFFc9d1ff), fontFamily = FontFamily.Monospace)
-        Text("Cyber Pulse: ${viewModel.pulse}%", color = Color(0xFF00c6ff), fontFamily = FontFamily.Monospace)
-        Text("Latency: ${viewModel.latency} ms", color = Color(0xFF562dff), fontFamily = FontFamily.Monospace)
+        Text("GRID STATUS: $status", color = Color(0xFFc9d1ff), fontFamily = FontFamily.Monospace)
+        Text("Cyber Pulse: $pulse%", color = Color(0xFF00c6ff), fontFamily = FontFamily.Monospace)
+        Text("Latency: $latency ms", color = Color(0xFF562dff), fontFamily = FontFamily.Monospace)
     }
 }
 
 @Composable
 fun ScanTab(viewModel: NetReaperViewModel) {
+    val target by viewModel.target.collectAsState()
+
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
-            value = viewModel.target.value,
-            onValueChange = { viewModel.target.value = it },
+            value = target,
+            onValueChange = { viewModel.setTarget(it) },
             label = { Text("Target") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row {
-            Button(onClick = { viewModel.executeCommand("nmap -T4 -F ${viewModel.target.value}") }) {
+            Button(onClick = { viewModel.executeCommand("nmap -T4 -F $target") }) {
                 Text("Quick Scan")
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = { viewModel.executeCommand("sudo nmap -sS -sV -A -p- ${viewModel.target.value}") }) {
+            Button(onClick = { viewModel.executeCommand("sudo nmap -sS -sV -A -p- $target") }) {
                 Text("Full Scan")
             }
         }
@@ -114,15 +120,17 @@ fun ScanTab(viewModel: NetReaperViewModel) {
 
 @Composable
 fun ReconTab(viewModel: NetReaperViewModel) {
+    val target by viewModel.target.collectAsState()
+
     // Similar to ScanTab, with recon buttons
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
-            value = viewModel.target.value,
-            onValueChange = { viewModel.target.value = it },
+            value = target,
+            onValueChange = { viewModel.setTarget(it) },
             label = { Text("Subnet/host") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(onClick = { viewModel.executeCommand("nmap -sn ${viewModel.target.value}") }) {
+        Button(onClick = { viewModel.executeCommand("nmap -sn $target") }) {
             Text("Ping Sweep")
         }
     }
@@ -130,15 +138,17 @@ fun ReconTab(viewModel: NetReaperViewModel) {
 
 @Composable
 fun WirelessTab(viewModel: NetReaperViewModel) {
+    val networkInterface by viewModel.networkInterface.collectAsState()
+
     // Wireless controls
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
-            value = viewModel.interface.value,
-            onValueChange = { viewModel.interface.value = it },
+            value = networkInterface,
+            onValueChange = { viewModel.setNetworkInterface(it) },
             label = { Text("Wireless Interface") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(onClick = { viewModel.executeCommand("sudo airmon-ng start ${viewModel.interface.value}") }) {
+        Button(onClick = { viewModel.executeCommand("sudo airmon-ng start $networkInterface") }) {
             Text("Enable Monitor")
         }
     }
@@ -146,15 +156,17 @@ fun WirelessTab(viewModel: NetReaperViewModel) {
 
 @Composable
 fun WebTab(viewModel: NetReaperViewModel) {
+    val target by viewModel.target.collectAsState()
+
     // Web tools
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
-            value = viewModel.target.value,
-            onValueChange = { viewModel.target.value = it },
+            value = target,
+            onValueChange = { viewModel.setTarget(it) },
             label = { Text("URL/Domain") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(onClick = { viewModel.executeCommand("nikto -host ${viewModel.target.value}") }) {
+        Button(onClick = { viewModel.executeCommand("nikto -host $target") }) {
             Text("Nikto Scan")
         }
     }
@@ -162,6 +174,8 @@ fun WebTab(viewModel: NetReaperViewModel) {
 
 @Composable
 fun OutputLog(viewModel: NetReaperViewModel) {
+    val log by viewModel.log.collectAsState()
+
     LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
@@ -169,7 +183,7 @@ fun OutputLog(viewModel: NetReaperViewModel) {
             .background(Color(0xFF03030a))
             .padding(8.dp)
     ) {
-        items(viewModel.log.value) { line ->
+        items(log) { line ->
             Text(line, color = Color(0xFF00c6ff), fontFamily = FontFamily.Monospace)
         }
     }
@@ -177,6 +191,14 @@ fun OutputLog(viewModel: NetReaperViewModel) {
 
 @Composable
 fun PairingPanel(viewModel: NetReaperViewModel) {
+    val remotePaired by viewModel.remotePaired.collectAsState()
+    val guiPaired by viewModel.guiPaired.collectAsState()
+    val connectionState by viewModel.connectionState.collectAsState()
+    val hostInput by viewModel.hostInput.collectAsState()
+    val passwordInput by viewModel.passwordInput.collectAsState()
+    val connectionMessages by viewModel.connectionMessages.collectAsState()
+    val pairingFeedback by viewModel.pairingFeedback.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,40 +224,40 @@ fun PairingPanel(viewModel: NetReaperViewModel) {
         ) {
             StatusCard(
                 title = "Remote Device",
-                paired = viewModel.remotePaired.value,
-                badgeText = viewModel.connectionState.value.name,
+                paired = remotePaired,
+                badgeText = connectionState.name,
                 onAction = { viewModel.pairDevice() },
-                actionLabel = if (viewModel.remotePaired.value) "Re-Pair" else "Pair Device"
+                actionLabel = if (remotePaired) "Re-Pair" else "Pair Device",
+                modifier = Modifier.weight(1f)
             )
             StatusCard(
                 title = "GUI Application",
-                paired = viewModel.guiPaired.value,
-                badgeText = viewModel.connectionState.value.name,
+                paired = guiPaired,
+                badgeText = connectionState.name,
                 onAction = { viewModel.pairGui() },
-                actionLabel = if (viewModel.guiPaired.value) "Refresh Pairing" else "Pair GUI"
+                actionLabel = if (guiPaired) "Refresh Pairing" else "Pair GUI",
+                modifier = Modifier.weight(1f)
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
-                value = viewModel.hostInput.value,
-                onValueChange = { viewModel.hostInput.value = it },
+                value = hostInput,
+                onValueChange = { viewModel.setHostInput(it) },
                 label = { Text("Host", color = Color(0xFFc9d1ff)) },
                 modifier = Modifier.weight(1f),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    textColor = Color(0xFFc9d1ff),
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6f00ff),
                     unfocusedBorderColor = Color(0xFF312162)
                 )
             )
             Spacer(modifier = Modifier.width(8.dp))
             OutlinedTextField(
-                value = viewModel.passwordInput.value,
-                onValueChange = { viewModel.passwordInput.value = it },
+                value = passwordInput,
+                onValueChange = { viewModel.setPasswordInput(it) },
                 label = { Text("Password", color = Color(0xFFc9d1ff)) },
                 modifier = Modifier.weight(1f),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    textColor = Color(0xFFc9d1ff),
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6f00ff),
                     unfocusedBorderColor = Color(0xFF312162)
                 )
@@ -244,7 +266,7 @@ fun PairingPanel(viewModel: NetReaperViewModel) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = { viewModel.connect(viewModel.hostInput.value, viewModel.passwordInput.value) },
+                onClick = { viewModel.connect(hostInput, passwordInput) },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4b00ff))
             ) {
                 Text("Connect", color = Color.White)
@@ -255,17 +277,17 @@ fun PairingPanel(viewModel: NetReaperViewModel) {
             ) {
                 Text("Disconnect", color = Color.White)
             }
-            ConnectionBadge(state = viewModel.connectionState.value)
+            ConnectionBadge(state = connectionState)
         }
         Spacer(modifier = Modifier.height(8.dp))
         LazyColumn(modifier = Modifier.height(80.dp)) {
-            items(viewModel.connectionMessages.toList()) { message ->
+            items(connectionMessages) { message ->
                 Text(message, fontSize = 10.sp, color = Color(0xFF56ffea))
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         LazyColumn(modifier = Modifier.height(80.dp)) {
-            items(viewModel.pairingFeedback.toList()) { message ->
+            items(pairingFeedback) { message ->
                 Text(message, fontSize = 10.sp, color = Color(0xFFea76ff))
             }
         }
@@ -278,13 +300,13 @@ fun StatusCard(
     paired: Boolean,
     badgeText: String,
     onAction: () -> Unit,
-    actionLabel: String
+    actionLabel: String,
+    modifier: Modifier = Modifier
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF130f2c)),
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .border(
                 width = 1.dp,
                 color = if (paired) Color(0xFF00ff94) else Color(0xFF5645ff),
