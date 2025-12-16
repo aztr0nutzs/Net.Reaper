@@ -104,6 +104,19 @@ get_wireless_interface() {
         return 1
     fi
 
+    # Auto-select if only one interface
+    local iface_count
+    iface_count=$(echo "$interfaces" | wc -w)
+    if [[ "$iface_count" -eq 1 ]]; then
+        echo -ne "    ${C_CYAN}Only one wireless interface found: $interfaces. Use it? [Y/n]: ${C_RESET}"
+        read -r confirm
+        if [[ "${confirm,,}" != "n" ]]; then
+            IFACE="$interfaces"
+            log_success "Auto-selected interface: $IFACE"
+            return 0
+        fi
+    fi
+
     log_info "Available wireless interfaces: $interfaces"
     echo -ne "    ${C_CYAN}Interface [${interfaces%% *}]: ${C_RESET}"
     read -r iface
@@ -167,6 +180,24 @@ start_monitor_mode() {
         if echo "$output" | grep -qE '\(monitor mode.*enabled'; then
             new_iface=$(echo "$output" | grep -oP '\w+mon' | head -n1)
             [[ -z "$new_iface" ]] && new_iface="${iface}mon"
+        fi
+
+        # If airmon-ng failed, prompt for manual fallback
+        if ! check_monitor_mode "$new_iface" 2>/dev/null; then
+            log_warning "Airmon-ng failed to enable monitor mode"
+            echo -ne "    ${C_CYAN}Try manual method? [Y/n]: ${C_RESET}"
+            read -r try_manual
+            if [[ "${try_manual,,}" != "n" ]]; then
+                log_command_preview "ip link set $iface down && iw dev $iface set type monitor && ip link set $iface up"
+                ip link set "$iface" down 2>/dev/null
+                if command -v iw &>/dev/null; then
+                    iw dev "$iface" set type monitor 2>/dev/null
+                else
+                    iwconfig "$iface" mode monitor 2>/dev/null
+                fi
+                ip link set "$iface" up 2>/dev/null
+                new_iface="$iface"
+            fi
         fi
     else
         # Manual method using iw
@@ -274,11 +305,12 @@ run_channel_hop() {
     echo
 
     while true; do
-        for ch in 1 2 3 4 5 6 7 8 9 10 11; do
-            set_channel "$iface" "$ch"
-            printf "\r    ${C_GHOST}Channel: ${C_VENOM}%2d${C_RESET}" "$ch"
-            sleep 0.3
+        # Parallelize channel changes for faster hopping
+        for ch in {1..11}; do
+            (set_channel "$iface" "$ch"; sleep 0.3) &
         done
+        wait
+        printf "\r    ${C_GHOST}Channel cycle complete${C_RESET}"
     done
 }
 
@@ -599,10 +631,10 @@ run_reaver() {
     local start_time
     start_time=$(date +%s)
 
-    log_command_preview "reaver -i $iface -b $bssid ${channel:+-c $channel} -vv"
+    log_command_preview "timeout 300 reaver -i $iface -b $bssid ${channel:+-c $channel} -vv"
     log_audit "WIRELESS" "reaver" "$bssid"
 
-    reaver -i "$iface" -b "$bssid" ${channel:+-c "$channel"} -vv
+    timeout 300 reaver -i "$iface" -b "$bssid" ${channel:+-c "$channel"} -vv || log_warning "Reaver timed out after 300 seconds"
 
     local duration
     duration=$(elapsed_time "$start_time")
@@ -629,10 +661,10 @@ run_reaver_pixie() {
     local start_time
     start_time=$(date +%s)
 
-    log_command_preview "reaver -i $iface -b $bssid ${channel:+-c $channel} -K 1 -vv"
+    log_command_preview "timeout 300 reaver -i $iface -b $bssid ${channel:+-c $channel} -K 1 -vv"
     log_audit "WIRELESS" "pixie_dust" "$bssid"
 
-    reaver -i "$iface" -b "$bssid" ${channel:+-c "$channel"} -K 1 -vv
+    timeout 300 reaver -i "$iface" -b "$bssid" ${channel:+-c "$channel"} -K 1 -vv || log_warning "Pixie Dust timed out after 300 seconds"
 
     local duration
     duration=$(elapsed_time "$start_time")
@@ -782,6 +814,17 @@ run_hashcat_wifi() {
 # WIRELESS MENU
 #═══════════════════════════════════════════════════════════════════════════════
 
+# Fuzzy match for BSSID/SSID suggestions
+fuzzy_match_target() {
+    local input="$1"
+    local scan_file="${LOOT_DIR:-/tmp}/wifi_scan_latest.json"
+    if [[ ! -f "$scan_file" ]]; then
+        return
+    fi
+    # Simple grep for partial matches
+    jq -r '.networks[] | select(.bssid | test("'$input'"; "i") or .ssid | test("'$input'"; "i")) | "\(.bssid) - \(.ssid)"' "$scan_file" 2>/dev/null | head -5
+}
+
 # Interactive wireless menu
 wireless_menu() {
     while true; do
@@ -808,13 +851,18 @@ wireless_menu() {
         echo -e "    ${C_GREEN}║${C_RESET}   ${C_SHADOW}──── Cracking ────${C_RESET}                                            ${C_GREEN}║${C_RESET}"
         echo -e "    ${C_GREEN}║${C_RESET}   ${C_GHOST}[10]${C_RESET} Crack with Aircrack       ${C_SHADOW}aircrack-ng${C_RESET}                    ${C_GREEN}║${C_RESET}"
         echo -e "    ${C_GREEN}║${C_RESET}   ${C_GHOST}[11]${C_RESET} Crack with Hashcat        ${C_SHADOW}hashcat GPU${C_RESET}                    ${C_GREEN}║${C_RESET}"
-        echo -e "    ${C_GREEN}║${C_RESET}   ${C_GHOST}[12]${C_RESET} Convert Handshake         ${C_SHADOW}.cap → .hc22000${C_RESET}                ${C_GREEN}║${C_RESET}"
+        echo -e "    ${C_GHOST}[12]${C_RESET} Convert Handshake         ${C_SHADOW}.cap → .hc22000${C_RESET}                ${C_GREEN}║${C_RESET}"
+        echo -e "    ${C_GREEN}║${C_RESET}                                                                   ${C_GREEN}║${C_RESET}"
+        echo -e "    ${C_GREEN}║${C_RESET}   ${C_SHADOW}──── Wizards ────${C_RESET}                                             ${C_GREEN}║${C_RESET}"
+        echo -e "    ${C_GREEN}║${C_RESET}   ${C_GHOST}[W]${C_RESET} Guided Workflow           ${C_SHADOW}Auto-guided attacks${C_RESET}               ${C_GREEN}║${C_RESET}"
         echo -e "    ${C_GREEN}║${C_RESET}                                                                   ${C_GREEN}║${C_RESET}"
         echo -e "    ${C_GREEN}║${C_RESET}                       ${C_RED}[B] ← Back${C_RESET}                                  ${C_GREEN}║${C_RESET}"
         echo -e "    ${C_GREEN}╚═══════════════════════════════════════════════════════════════════╝${C_RESET}"
         echo
         echo -ne "    ${C_CYAN}▶${C_RESET} "
         read -r choice
+
+        log_audit "WIRELESS" "menu_selection" "$choice"
 
         case "$choice" in
             1)  # Enable Monitor Mode
@@ -843,6 +891,13 @@ wireless_menu() {
                 validate_wireless_interface "$IFACE" true || continue
                 echo -ne "    ${C_CYAN}Target BSSID: ${C_RESET}"
                 read -r bssid
+                if [[ -n "$bssid" ]]; then
+                    matches=$(fuzzy_match_target "$bssid")
+                    if [[ -n "$matches" ]]; then
+                        echo "Suggestions:"
+                        echo "$matches"
+                    fi
+                fi
                 echo -ne "    ${C_CYAN}Client MAC (or 'all'): ${C_RESET}"
                 read -r client
                 echo -ne "    ${C_CYAN}Deauth count [10]: ${C_RESET}"
@@ -854,6 +909,13 @@ wireless_menu() {
                 validate_wireless_interface "$IFACE" true || continue
                 echo -ne "    ${C_CYAN}Target BSSID: ${C_RESET}"
                 read -r bssid
+                if [[ -n "$bssid" ]]; then
+                    matches=$(fuzzy_match_target "$bssid")
+                    if [[ -n "$matches" ]]; then
+                        echo "Suggestions:"
+                        echo "$matches"
+                    fi
+                fi
                 echo -ne "    ${C_CYAN}Channel: ${C_RESET}"
                 read -r channel
                 echo
@@ -874,6 +936,13 @@ wireless_menu() {
                 validate_wireless_interface "$IFACE" true || continue
                 echo -ne "    ${C_CYAN}Target BSSID: ${C_RESET}"
                 read -r bssid
+                if [[ -n "$bssid" ]]; then
+                    matches=$(fuzzy_match_target "$bssid")
+                    if [[ -n "$matches" ]]; then
+                        echo "Suggestions:"
+                        echo "$matches"
+                    fi
+                fi
                 echo -ne "    ${C_CYAN}Channel: ${C_RESET}"
                 read -r channel
                 capture_handshake "$IFACE" "$bssid" "$channel"
@@ -893,17 +962,84 @@ wireless_menu() {
                 run_hashcat_wifi "$hashfile" "${wordlist:-/usr/share/wordlists/rockyou.txt}"
                 ;;
             12) # Convert Handshake
-                echo -ne "    ${C_CYAN}Capture file (.cap): ${C_RESET}"
-                read -r capfile
-                convert_to_hashcat "$capfile"
-                ;;
-            b|B|0)
-                return
-                ;;
-            *)
-                log_error "Invalid option"
-                ;;
-        esac
+                 echo -ne "    ${C_CYAN}Capture file (.cap): ${C_RESET}"
+                 read -r capfile
+                 convert_to_hashcat "$capfile"
+                 ;;
+             w|W) # Wizard Mode
+                 echo
+                 echo -e "    ${C_GHOST}[1]${C_RESET} Quick Scan & Deauth"
+                 echo -e "    ${C_GHOST}[2]${C_RESET} WPS Crack"
+                 echo -e "    ${C_GHOST}[3]${C_RESET} Handshake Capture & Crack"
+                 echo
+                 echo -ne "    ${C_CYAN}Select workflow [1]: ${C_RESET}"
+                 read -r workflow
+                 workflow="${workflow:-1}"
+                 case "$workflow" in
+                     1)
+                         run_airodump
+                         echo -ne "    ${C_CYAN}Target BSSID for deauth: ${C_RESET}"
+                         read -r bssid
+                         if [[ -n "$bssid" ]]; then
+                             matches=$(fuzzy_match_target "$bssid")
+                             if [[ -n "$matches" ]]; then
+                                 echo "Suggestions:"
+                                 echo "$matches"
+                             fi
+                         fi
+                         echo -ne "    ${C_CYAN}Client MAC (or 'all'): ${C_RESET}"
+                         read -r client
+                         run_aireplay_deauth "$IFACE" "$bssid" "${client:-all}" "10"
+                         ;;
+                     2)
+                         get_wireless_interface || continue
+                         validate_wireless_interface "$IFACE" true || continue
+                         echo -ne "    ${C_CYAN}Target BSSID: ${C_RESET}"
+                         read -r bssid
+                         if [[ -n "$bssid" ]]; then
+                             matches=$(fuzzy_match_target "$bssid")
+                             if [[ -n "$matches" ]]; then
+                                 echo "Suggestions:"
+                                 echo "$matches"
+                             fi
+                         fi
+                         echo -ne "    ${C_CYAN}Channel: ${C_RESET}"
+                         read -r channel
+                         run_reaver "$IFACE" "$bssid" "$channel"
+                         ;;
+                     3)
+                         get_wireless_interface || continue
+                         validate_wireless_interface "$IFACE" true || continue
+                         echo -ne "    ${C_CYAN}Target BSSID: ${C_RESET}"
+                         read -r bssid
+                         if [[ -n "$bssid" ]]; then
+                             matches=$(fuzzy_match_target "$bssid")
+                             if [[ -n "$matches" ]]; then
+                                 echo "Suggestions:"
+                                 echo "$matches"
+                             fi
+                         fi
+                         echo -ne "    ${C_CYAN}Channel: ${C_RESET}"
+                         read -r channel
+                         capture_handshake "$IFACE" "$bssid" "$channel"
+                         echo -ne "    ${C_CYAN}Captured file (.cap): ${C_RESET}"
+                         read -r capfile
+                         if [[ -f "$capfile" ]]; then
+                             convert_to_hashcat "$capfile"
+                             echo -ne "    ${C_CYAN}Wordlist [rockyou.txt]: ${C_RESET}"
+                             read -r wordlist
+                             run_hashcat_wifi "$(convert_to_hashcat "$capfile")" "${wordlist:-/usr/share/wordlists/rockyou.txt}"
+                         fi
+                         ;;
+                 esac
+                 ;;
+             b|B|0)
+                 return
+                 ;;
+             *)
+                 log_error "Invalid option"
+                 ;;
+         esac
         echo -e "\n    ${C_SHADOW}Press Enter to continue...${C_RESET}"
         read -r
     done

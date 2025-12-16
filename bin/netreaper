@@ -132,7 +132,6 @@ Options:
 
 Commands:
   status          Show tool installation status
-  gui             Launch the PyQt6 GUI frontend
   scan <target>   Run a quick port scan
   wifi            WiFi operations
   stress          Stress testing (hping3, netem)
@@ -153,7 +152,6 @@ Examples:
   netreaper scan 192.168.1.1
   netreaper config show
   netreaper config set log_level DEBUG
-  netreaper gui
 
 Run without arguments to launch the interactive menu.
 EOF
@@ -279,11 +277,6 @@ main() {
             _show_status
             exit 0
             ;;
-        gui)
-            shift
-            python3 "${NETREAPER_ROOT}/gui/netreaper_gui.py" "$@"
-            exit $?
-            ;;
         scan)
             shift
             if declare -f run_nmap_quick &>/dev/null && [[ -n "${1:-}" ]]; then
@@ -336,6 +329,66 @@ main() {
                             ;;
                     esac
                     ;;
+
+                scan)
+                    # WiFi discovery scan -> JSON (for holographic map / reporting)
+                    if [[ -z "${3:-}" ]]; then
+                        # Optional iface: auto-detect
+                        wifi_scan_json "" ""
+                        exit $?
+                    fi
+                    case "${3:-}" in
+                        --help|-h)
+                            cat <<'WIFI_SCAN_HELP'
+Usage:
+  netreaper wifi scan [iface]
+
+What it does:
+  Performs a WiFi discovery scan (authorized environments only) and writes:
+    ~/.netreaper/output/wifi_scan_latest.json
+
+Notes:
+  - Prefers nmcli when available (managed mode).
+  - Falls back to iw (requires sudo/root).
+WIFI_SCAN_HELP
+                            exit 0
+                            ;;
+                        *)
+                            wifi_scan_json "$3" ""
+                            exit $?
+                            ;;
+                    esac
+                    ;;
+                map)
+                    # Serve the holographic 3D-ish map UI
+                    local port="${3:-8787}"
+                    if [[ "$port" == "--help" || "$port" == "-h" ]]; then
+                        cat <<'WIFI_MAP_HELP'
+Usage:
+  netreaper wifi map [port]
+
+Then open in a browser:
+  http://127.0.0.1:<port>/
+
+Requires:
+  python3
+
+Tips:
+  Run a scan first:
+    netreaper wifi scan <iface>
+WIFI_MAP_HELP
+                        exit 0
+                    fi
+
+                    if ! check_tool "python3"; then
+                        log_error "python3 is required for the map server"
+                        exit 1
+                    fi
+
+                    python3 "$NETREAPER_ROOT/bin/netreaper-map" --port "$port" --data "$OUTPUT_DIR/wifi_scan_latest.json"
+                    exit $?
+                    ;;
+
                 "")
                     # No subcommand - show wifi usage
                     cat << 'WIFI_HELP'
@@ -348,12 +401,16 @@ Commands:
   status <iface>          Show interface mode (monitor/managed)
   monitor on <iface>      Enable monitor mode
   monitor off <iface>     Disable monitor mode
+  scan [iface]            WiFi discovery -> JSON (for map)
+  map [port]              Launch holographic map server (default 8787)
 
 Examples:
   netreaper wifi list
   netreaper wifi status wlan0
   netreaper wifi monitor on wlan0
   netreaper wifi monitor off wlan0mon
+  netreaper wifi scan wlan0
+  netreaper wifi map 8787
 WIFI_HELP
                     exit 0
                     ;;

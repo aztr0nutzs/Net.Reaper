@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NETREAPER — BioLab Command HUD (ULTRA)</title>
+<style>
+:root{
+  --bg0:#04050a;
+  --bg1:#050814;
+  --panel: rgba(10,14,26,.78);
+  --panel2: rgba(10,14,26,.92);
+  --stroke: rgba(122,167,255,.18);
+  --stroke2: rgba(88,255,176,.18);
+  --text:#d6e2ff;
+  --muted:#8ea2d9;
+  --good:#58ffb0;
+  --bad:#ff4d6d;
+  --warn:#ffd166;
+  --ice:#7aa7ff;
+  --slime:#58ffb0;
+  --slime2:#a7ff83;
+  --amber:#ffd166;
+  --violet:#c77dff;
+  --shadow: 0 18px 70px rgba(0,0,0,.55);
+  --shadow2: 0 8px 24px rgba(0,0,0,.35);
+  --r: 18px;
+  --r2: 22px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", Arial;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 800px at 20% 0%, rgba(88,255,176,.16), transparent 55%),
+    radial-gradient(900px 720px at 110% 20%, rgba(122,167,255,.15), transparent 55%),
+    radial-gradient(800px 620px at 50% 120%, rgba(199,125,255,.10), transparent 55%),
+    linear-gradient(180deg,var(--bg0),var(--bg1));
+  overflow:hidden;
+}
+
+.bg{position:fixed; inset:0; pointer-events:none;}
+#bgCanvas{position:absolute; inset:0; width:100%; height:100%; opacity:.95; mix-blend-mode:screen;}
+.grid{position:absolute; inset:-2px;
+  background-image:
+    linear-gradient(to right, rgba(60,120,255,.10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(60,120,255,.08) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity:.22;
+  mask-image: radial-gradient(closest-side at 40% 18%, rgba(0,0,0,.92), transparent 70%);
+}
+.scanlines{position:absolute; inset:0;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,.06) 0px, rgba(255,255,255,0) 2px, rgba(0,0,0,0) 4px);
+  opacity:.10; mix-blend-mode:overlay; animation:scan 8s linear infinite;
+}
+@keyframes scan{from{transform:translateY(-10px)} to{transform:translateY(10px)}}
+.grain{position:absolute; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.38'/%3E%3C/svg%3E");
+  opacity:.06; mix-blend-mode:overlay;
+}
+
+.app{position:relative; height:100%; display:grid; grid-template-columns: 320px 1fr 420px; grid-template-rows: 78px 1fr 250px; gap:12px; padding:12px;}
+@media (max-width: 1250px){ .app{grid-template-columns: 300px 1fr; grid-template-rows: 78px 1fr 320px;} .right{grid-column:1/-1} }
+@media (max-width: 860px){ body{overflow:auto;} .app{grid-template-columns: 1fr; grid-template-rows: 78px auto auto auto; height:auto;} .left{grid-row:auto} .center{grid-row:auto} .right{grid-row:auto} .bottom{grid-row:auto} }
+
+.card{
+  border-radius: var(--r2);
+  background: linear-gradient(180deg, rgba(10,14,26,.72), rgba(7,10,18,.90));
+  border: 1px solid rgba(86,130,255,.18);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  position:relative;
+}
+.card:before{
+  content:"";
+  position:absolute; inset:-2px;
+  background:
+    radial-gradient(680px 300px at 20% 10%, rgba(88,255,176,.14), transparent 55%),
+    radial-gradient(520px 300px at 90% 10%, rgba(122,167,255,.12), transparent 55%),
+    linear-gradient(90deg, rgba(255,255,255,.04), transparent 35%, rgba(255,255,255,.02));
+  opacity:.9;
+  pointer-events:none;
+}
+.card > *{position:relative;}
+
+.header{grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px;}
+.brand{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+.logo{width:44px; height:44px; border-radius: 14px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.25), rgba(255,255,255,0) 55%),
+              linear-gradient(135deg, rgba(88,255,176,.95), rgba(122,167,255,.85));
+  border:1px solid rgba(88,255,176,.45);
+  box-shadow: 0 18px 44px rgba(88,255,176,.16);
+  position:relative;
+}
+.logo:after{
+  content:"";
+  position:absolute; inset:9px;
+  border-radius:12px;
+  border:1px dashed rgba(0,0,0,.35);
+  opacity:.55;
+}
+.h1{margin:0; font-size:15px; text-transform:uppercase; letter-spacing:.12em; font-weight:850;}
+.sub{margin:2px 0 0; color:var(--muted); font-size:12px; line-height:1.2;}
+.pills{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; align-items:center;}
+.pill{padding:6px 10px; border-radius:999px; font-size:12px; color:#071015; font-weight:850; letter-spacing:.08em; text-transform:uppercase;
+  background: linear-gradient(90deg, rgba(88,255,176,.98), rgba(167,255,131,.98));
+  box-shadow: 0 14px 40px rgba(88,255,176,.15);
+}
+.pill.ice{color:#071015; background: linear-gradient(90deg, rgba(122,167,255,.98), rgba(199,125,255,.90));}
+.pill.dark{color:var(--text); background: rgba(0,0,0,.25); border: 1px solid rgba(86,130,255,.20); box-shadow: none;}
+.kbd{font-family:var(--mono); font-size:11px; padding:2px 6px; border-radius:8px; border:1px solid rgba(86,130,255,.24); background: rgba(0,0,0,.25);}
+
+.left{grid-row:2; grid-column:1; display:flex; flex-direction:column;}
+.center{grid-row:2; grid-column:2; display:flex; flex-direction:column; gap:12px; min-width:0;}
+.right{grid-row:2; grid-column:3; display:flex; flex-direction:column; gap:12px; min-width:0;}
+.bottom{grid-row:3; grid-column:1/-1; display:grid; grid-template-columns: 1.2fr .8fr; gap:12px; min-height:0;}
+@media (max-width: 1250px){ .bottom{grid-template-columns: 1fr;} }
+
+.sectionTitle{padding:12px 14px; border-bottom:1px solid rgba(60,120,255,.16); display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.sectionTitle h2{margin:0; font-size:13px; text-transform:uppercase; letter-spacing:.12em;}
+.sectionTitle .mini{font-size:12px; color:var(--muted);}
+
+.nav{padding:10px; display:flex; flex-direction:column; gap:10px; height:100%;}
+.search{display:flex; gap:8px; padding:10px; border-radius: 14px; border:1px solid rgba(86,130,255,.18); background: rgba(0,0,0,.20);}
+.search input{flex:1; border:none; outline:none; background:transparent; color:var(--text); font-size:13px;}
+.search button{border:none; background: rgba(122,167,255,.18); color:var(--text); border:1px solid rgba(86,130,255,.22); border-radius: 12px; padding:8px 10px; cursor:pointer; font-weight:800;}
+.search button:hover{filter:brightness(1.08);}
+
+.moduleList{display:flex; flex-direction:column; gap:8px; overflow:auto; padding-right:4px;}
+.module{padding:10px 10px; border-radius: 16px; border:1px solid rgba(86,130,255,.16); background: rgba(0,0,0,.18); cursor:pointer; user-select:none; transition: transform .12s ease, filter .12s ease; position:relative; overflow:hidden;}
+.module:hover{transform: translateY(-1px); filter: brightness(1.06);}
+.module.active{border-color: rgba(88,255,176,.35); box-shadow: 0 12px 34px rgba(88,255,176,.10);}
+.module .t{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.module .name{font-weight:900; letter-spacing:.06em; text-transform:uppercase; font-size:12px;}
+.module .count{font-family:var(--mono); color:var(--muted); font-size:12px;}
+.module .d{margin-top:6px; color:var(--muted); font-size:12px; line-height:1.25;}
+.module .bar{position:absolute; left:0; top:0; bottom:0; width:4px; background: linear-gradient(180deg, rgba(88,255,176,.9), rgba(122,167,255,.65)); opacity:.0; transition:opacity .12s ease;}
+.module.active .bar{opacity:1;}
+
+.toolList{padding:10px; overflow:auto; display:flex; flex-direction:column; gap:10px; height:100%;}
+.toolCard{border-radius: 18px; border:1px solid rgba(86,130,255,.14); background: rgba(0,0,0,.18); padding:10px 10px; cursor:pointer; transition: transform .12s ease, filter .12s ease; position:relative; overflow:hidden;}
+.toolCard:hover{transform: translateY(-1px); filter:brightness(1.06);}
+.toolCard.active{border-color: rgba(122,167,255,.40); box-shadow: 0 12px 34px rgba(122,167,255,.12);}
+.toolCard .row{display:flex; gap:10px; align-items:center; justify-content:space-between;}
+.toolCard .fn{font-family:var(--mono); font-size:12px; color:#cfe2ff; font-weight:800;}
+.toolCard .tag{font-size:11px; padding:4px 8px; border-radius:999px; background: rgba(88,255,176,.12); border:1px solid rgba(88,255,176,.18); color:var(--muted);}
+.toolCard .desc{margin-top:6px; font-size:12px; color:var(--muted); line-height:1.25;}
+
+.mapWrap{flex:1; min-height: 420px;}
+.mapTop{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid rgba(60,120,255,.16);}
+.mapTop .left{display:flex; gap:10px; align-items:center; flex-direction:row;}
+.mapTop .left h2{margin:0; font-size:13px; letter-spacing:.12em; text-transform:uppercase;}
+.mapTop .controls{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+.btn{appearance:none; border:none; cursor:pointer; user-select:none;
+  color:var(--text);
+  background: linear-gradient(180deg, rgba(18,26,60,.95), rgba(10,14,28,.95));
+  border: 1px solid rgba(86,130,255,.24);
+  border-bottom-color: rgba(88,255,176,.18);
+  padding: 9px 10px;
+  border-radius: 14px;
+  font-weight: 850;
+  letter-spacing:.03em;
+  box-shadow: var(--shadow2);
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+}
+.btn:hover{transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 16px 40px rgba(0,0,0,.35);}
+.btn:active{transform: translateY(0) scale(.98); filter: brightness(.98);}
+.btn.primary{color:#061014; background: linear-gradient(90deg, rgba(88,255,176,.98), rgba(167,255,131,.98)); border-color: rgba(88,255,176,.55);}
+.btn.warn{border-color: rgba(255,209,102,.35);}
+.btn.danger{border-color: rgba(255,77,109,.35);}
+.btn:disabled{opacity:.45; cursor:not-allowed; transform:none; filter:none; box-shadow:none;}
+
+.mapCanvas{width:100%; height:100%; display:block;}
+.mapPanel{position:relative; flex:1; min-height: 420px;}
+.mapHUD{position:absolute; left:12px; bottom:12px; right:12px; display:flex; justify-content:space-between; gap:10px; pointer-events:none;}
+.hudBox{pointer-events:none; flex:1; border-radius: 16px; padding:10px; border:1px solid rgba(86,130,255,.16); background: rgba(0,0,0,.25);}
+.hudBox h3{margin:0 0 6px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);}
+.hudBox .big{font-family:var(--mono); font-size:12px; color:#cfe2ff;}
+.hudBox .small{margin-top:4px; font-size:11px; color:var(--muted); line-height:1.2;}
+
+.execBody{padding: 12px 14px; display:flex; flex-direction:column; gap:10px;}
+.field{display:flex; flex-direction:column; gap:6px;}
+.field label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em;}
+.field input, .field select, .field textarea{
+  border-radius: 14px;
+  border:1px solid rgba(86,130,255,.18);
+  background: rgba(0,0,0,.25);
+  color:var(--text);
+  padding: 10px 10px;
+  outline:none;
+  font-size:13px;
+}
+.field textarea{min-height: 76px; font-family: var(--mono); font-size:12px;}
+.row2{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+@media (max-width: 1250px){ .row2{grid-template-columns: 1fr;} }
+
+.kv{display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center; padding: 10px; border-radius: 16px; border:1px solid rgba(86,130,255,.14); background: rgba(0,0,0,.18);}
+.kv .k{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em;}
+.kv .v{font-family:var(--mono); font-size:12px; color:#cfe2ff;}
+.progressWrap{padding:10px; border-radius:16px; border:1px solid rgba(86,130,255,.14); background: rgba(0,0,0,.18);}
+.progressTop{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+.progressTop .label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em;}
+.progressTop .pct{font-family:var(--mono); font-size:12px; color:#cfe2ff;}
+.progressBar{margin-top:8px; height: 12px; border-radius:999px; background: rgba(255,255,255,.06); border:1px solid rgba(86,130,255,.14); overflow:hidden;}
+.progressBar > div{height:100%; width:0%; border-radius:999px; background: linear-gradient(90deg, rgba(88,255,176,.95), rgba(122,167,255,.85), rgba(199,125,255,.75)); box-shadow: 0 12px 30px rgba(88,255,176,.12);}
+.stageList{margin-top:10px; display:flex; flex-direction:column; gap:8px;}
+.stage{display:flex; justify-content:space-between; gap:10px; align-items:center; padding:8px 10px; border-radius: 14px; border:1px solid rgba(86,130,255,.12); background: rgba(0,0,0,.20);}
+.stage .s{font-size:12px; color:var(--muted);}
+.stage .dot{width:10px; height:10px; border-radius:999px; background: rgba(255,255,255,.12); border:1px solid rgba(86,130,255,.16);}
+.stage.done .dot{background: rgba(88,255,176,.75); border-color: rgba(88,255,176,.35); box-shadow:0 0 18px rgba(88,255,176,.20);}
+.stage.active .dot{background: rgba(255,209,102,.75); border-color: rgba(255,209,102,.35); box-shadow:0 0 18px rgba(255,209,102,.18);}
+.stage.fail .dot{background: rgba(255,77,109,.75); border-color: rgba(255,77,109,.35); box-shadow:0 0 18px rgba(255,77,109,.18);}
+
+.console{height:100%; display:flex; flex-direction:column; min-height:0;}
+.consoleTop{display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid rgba(60,120,255,.16);}
+.consoleTop .left{display:flex; gap:10px; align-items:center; flex-direction:row;}
+.consoleTop h2{margin:0; font-size:13px; letter-spacing:.12em; text-transform:uppercase;}
+.filters{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+.pillBtn{cursor:pointer; user-select:none; font-size:11px; border-radius:999px; padding:6px 10px; border:1px solid rgba(86,130,255,.16); background: rgba(0,0,0,.22); color:var(--muted); font-weight:850; letter-spacing:.08em; text-transform:uppercase;}
+.pillBtn.active{color:#061014; background: linear-gradient(90deg, rgba(88,255,176,.95), rgba(167,255,131,.95)); border-color: rgba(88,255,176,.55);}
+.log{flex:1; min-height:0; overflow:auto; padding: 10px; font-family: var(--mono); font-size:12px; line-height: 1.35;}
+.line{padding:6px 8px; border-radius: 12px; border:1px solid rgba(86,130,255,.10); background: rgba(0,0,0,.18); margin-bottom:8px;}
+.line .ts{color: rgba(142,162,217,.9);}
+.line .lvl{display:inline-block; padding:2px 6px; border-radius:999px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; font-size:10px; margin:0 8px;}
+.lvl.info{background: rgba(122,167,255,.14); border:1px solid rgba(122,167,255,.24); color: #cfe2ff;}
+.lvl.ok{background: rgba(88,255,176,.14); border:1px solid rgba(88,255,176,.24); color: #cfe2ff;}
+.lvl.warn{background: rgba(255,209,102,.14); border:1px solid rgba(255,209,102,.24); color: #cfe2ff;}
+.lvl.err{background: rgba(255,77,109,.14); border:1px solid rgba(255,77,109,.24); color: #cfe2ff;}
+.line .msg{color: #d6e2ff;}
+.line pre{margin:8px 0 0; white-space: pre-wrap; color: rgba(214,226,255,.92);}
+.consoleCmd{display:flex; gap:10px; padding: 10px; border-top:1px solid rgba(60,120,255,.16);}
+.consoleCmd input{flex:1; border-radius: 14px; border:1px solid rgba(86,130,255,.18); background: rgba(0,0,0,.25); color:var(--text); padding: 10px 10px; outline:none; font-family: var(--mono); font-size:12px;}
+.consoleCmd .btn{padding:10px 12px;}
+
+.metrics{height:100%; display:flex; flex-direction:column; min-height:0;}
+.metricsBody{padding: 10px 10px 14px; display:grid; grid-template-columns: 1fr 1fr; gap:10px; min-height:0;}
+@media (max-width: 520px){ .metricsBody{grid-template-columns: 1fr;} }
+.spark{border-radius:16px; border:1px solid rgba(86,130,255,.14); background: rgba(0,0,0,.18); padding:10px;}
+.spark h3{margin:0 0 6px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);}
+.spark canvas{width:100%; height:70px; display:block;}
+.spark .val{margin-top:8px; font-family:var(--mono); font-size:12px; color:#cfe2ff;}
+
+.toast{position:fixed; left:18px; bottom:18px; max-width: 520px; z-index:99; display:flex; flex-direction:column; gap:10px;}
+.toastItem{border-radius: 18px; border:1px solid rgba(86,130,255,.16); background: rgba(0,0,0,.35); box-shadow: var(--shadow2); padding:10px 12px;}
+.toastItem b{color:#cfe2ff;}
+.smallNote{color:var(--muted); font-size:12px; line-height:1.25;}
+</style>
+</head>
+<body>
+<div class="bg">
+  <canvas id="bgCanvas"></canvas>
+  <div class="grid"></div>
+  <div class="scanlines"></div>
+  <div class="grain"></div>
+</div>
+
+<div class="app">
+  <div class="card header">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div class="h1">NETREAPER — BioLab Command HUD</div>
+        <div class="sub">Underground ops console • guided flows • rich telemetry • holographic network map</div>
+      </div>
+    </div>
+    <div class="pills">
+      <div class="pill dark">Backend: <span id="backendState">DEMO</span></div>
+      <div class="pill ice">3D MAP: <span id="mapState">ACTIVE</span></div>
+      <div class="pill">STATUS: <span id="statusState">READY</span></div>
+      <div class="pill dark">Hotkeys <span class="kbd">/</span> search <span class="kbd">Enter</span> run</div>
+    </div>
+  </div>
+
+  <div class="card left">
+    <div class="sectionTitle">
+      <h2>Modules</h2>
+      <div class="mini" id="moduleMeta">—</div>
+    </div>
+    <div class="nav">
+      <div class="search">
+        <input id="search" placeholder="Search tools / functions… (press /)" autocomplete="off"/>
+        <button id="clearSearch">Clear</button>
+      </div>
+      <div class="moduleList" id="moduleList"></div>
+    </div>
+  </div>
+
+  <div class="card center mapWrap">
+    <div class="mapTop">
+      <div class="left">
+        <h2>Holographic Discovery Map</h2>
+        <div class="pill dark" id="mapModePill">Mode: Passive</div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="mapReset">Reset</button>
+        <button class="btn warn" id="mapPulse">Pulse</button>
+        <button class="btn" id="mapAuto">Auto-Rotate</button>
+        <button class="btn primary" id="mapInject">Inject Demo Scan</button>
+      </div>
+    </div>
+    <div class="mapPanel" style="height:100%;">
+      <canvas class="mapCanvas" id="mapCanvas"></canvas>
+      <div class="mapHUD">
+        <div class="hudBox">
+          <h3>Active Node</h3>
+          <div class="big" id="nodeName">—</div>
+          <div class="small" id="nodeInfo">Click a node to inspect.</div>
+        </div>
+        <div class="hudBox">
+          <h3>Discovery</h3>
+          <div class="big"><span id="nodeCount">0</span> nodes • <span id="edgeCount">0</span> links</div>
+          <div class="small">Drag to rotate • Wheel zoom • Shift+Drag to pan</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="card">
+      <div class="sectionTitle">
+        <h2>Tool Browser</h2>
+        <div class="mini" id="toolMeta">—</div>
+      </div>
+      <div class="toolList" id="toolList"></div>
+    </div>
+
+    <div class="card execCard">
+      <div class="sectionTitle">
+        <h2>Execution Bay</h2>
+        <div class="mini" id="execMeta">Select a tool.</div>
+      </div>
+      <div class="execBody">
+        <div class="field">
+          <label>Selected Function</label>
+          <input id="fnName" disabled value="—"/>
+        </div>
+
+        <div class="row2" id="argFields"></div>
+
+        <div class="field">
+          <label>Command Preview</label>
+          <textarea id="cmdPreview" readonly>—</textarea>
+        </div>
+
+        <div class="row2">
+          <button class="btn primary" id="runBtn" disabled>Run</button>
+          <button class="btn danger" id="stopBtn" disabled>Stop</button>
+        </div>
+
+        <div class="kv">
+          <div class="k">Session</div>
+          <div class="v" id="sessionId">—</div>
+        </div>
+
+        <div class="progressWrap">
+          <div class="progressTop">
+            <div class="label">Operation Progress</div>
+            <div class="pct" id="progPct">0%</div>
+          </div>
+          <div class="progressBar"><div id="progBar"></div></div>
+          <div class="stageList" id="stageList"></div>
+        </div>
+
+        <div class="smallNote">
+          Demo mode simulates output. For real execution, attach a backend that accepts WebSocket JSON messages
+          (double-click the Backend pill).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="card console">
+      <div class="consoleTop">
+        <div class="left">
+          <h2>Console Output</h2>
+          <div class="pill dark" id="logMode">Filter: all</div>
+        </div>
+        <div class="filters">
+          <div class="pillBtn active" data-filter="all">All</div>
+          <div class="pillBtn" data-filter="info">Info</div>
+          <div class="pillBtn" data-filter="ok">OK</div>
+          <div class="pillBtn" data-filter="warn">Warn</div>
+          <div class="pillBtn" data-filter="err">Err</div>
+          <button class="btn" id="exportLog">Export</button>
+          <button class="btn danger" id="clearLog">Clear</button>
+        </div>
+      </div>
+      <div class="log" id="log"></div>
+      <div class="consoleCmd">
+        <input id="consoleInput" placeholder="Send a command or JSON to backend (demo accepts anything)…"/>
+        <button class="btn" id="sendBtn">Send</button>
+        <button class="btn primary" id="demoBurst">Demo Burst</button>
+      </div>
+    </div>
+
+    <div class="card metrics">
+      <div class="sectionTitle">
+        <h2>Telemetry</h2>
+        <div class="mini" id="teleMeta">Live simulated metrics</div>
+      </div>
+      <div class="metricsBody">
+        <div class="spark">
+          <h3>Discovery Rate</h3>
+          <canvas id="spark1"></canvas>
+          <div class="val"><span id="spark1v">0</span> hosts/min</div>
+        </div>
+        <div class="spark">
+          <h3>Packet Flow</h3>
+          <canvas id="spark2"></canvas>
+          <div class="val"><span id="spark2v">0</span> pkt/s</div>
+        </div>
+        <div class="spark">
+          <h3>Auth Attempts</h3>
+          <canvas id="spark3"></canvas>
+          <div class="val"><span id="spark3v">0</span> attempts/s</div>
+        </div>
+        <div class="spark">
+          <h3>CPU / RAM</h3>
+          <canvas id="spark4"></canvas>
+          <div class="val"><span id="spark4v">0</span>% load</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script id="data" type="application/json">{&quot;meta&quot;: {&quot;name&quot;: &quot;NETREAPER Command Center&quot;, &quot;build&quot;: &quot;ULTRA&quot;, &quot;generated&quot;: &quot;2025-12-15&quot;, &quot;notes&quot;: &quot;UI-only HUD with optional WebSocket backend integration.&quot;}, &quot;reference&quot;: {&quot;Recon &amp; Discovery&quot;: [{&quot;tool&quot;: &quot;nmap&quot;, &quot;purpose&quot;: &quot;TCP/UDP scans, service/vuln scripts&quot;, &quot;access&quot;: &quot;CLI: `netreaper scan ...`; Menu: Recon -&gt; nmap (quick/full/stealth/UDP/vuln)&quot;}, {&quot;tool&quot;: &quot;masscan&quot;, &quot;purpose&quot;: &quot;Fast port sweeps&quot;, &quot;access&quot;: &quot;Menu: Recon -&gt; Masscan&quot;}, {&quot;tool&quot;: &quot;rustscan&quot;, &quot;purpose&quot;: &quot;Rapid discovery feeding nmap&quot;, &quot;access&quot;: &quot;Menu: Recon -&gt; Rustscan&quot;}, {&quot;tool&quot;: &quot;netdiscover&quot;, &quot;purpose&quot;: &quot;ARP live host discovery&quot;, &quot;access&quot;: &quot;Menu: Recon -&gt; Netdiscover&quot;}, {&quot;tool&quot;: &quot;dnsenum&quot;, &quot;purpose&quot;: &quot;DNS/WHOIS/bruteforce&quot;, &quot;access&quot;: &quot;Menu: Recon -&gt; DNSenum&quot;}, {&quot;tool&quot;: &quot;sslscan&quot;, &quot;purpose&quot;: &quot;SSL/TLS cipher/protocol analysis&quot;, &quot;access&quot;: &quot;Menu: Recon -&gt; SSLScan&quot;}, {&quot;tool&quot;: &quot;enum4linux&quot;, &quot;purpose&quot;: &quot;SMB enumeration&quot;, &quot;access&quot;: &quot;Menu: Recon -&gt; enum4linux&quot;}], &quot;Wireless&quot;: [{&quot;tool&quot;: &quot;aircrack-ng suite (airodump/aireplay)&quot;, &quot;purpose&quot;: &quot;Capture handshakes, deauth, crack WPA/WPA2&quot;, &quot;access&quot;: &quot;CLI: `netreaper wifi --monitor &lt;iface&gt;` to start capture; Menu: Wireless -&gt; Capture/Deauth&quot;}, {&quot;tool&quot;: &quot;reaver&quot;, &quot;purpose&quot;: &quot;WPS exploitation&quot;, &quot;access&quot;: &quot;Menu: Wireless -&gt; Reaver&quot;}, {&quot;tool&quot;: &quot;bettercap&quot;, &quot;purpose&quot;: &quot;MITM and wireless attacks&quot;, &quot;access&quot;: &quot;Menu: Wireless -&gt; Bettercap&quot;}, {&quot;tool&quot;: &quot;wifite&quot;, &quot;purpose&quot;: &quot;Automated WiFi audit&quot;, &quot;access&quot;: &quot;Menu: Wireless -&gt; Wifite&quot;}, {&quot;tool&quot;: &quot;hostapd&quot;, &quot;purpose&quot;: &quot;Evil twin access point&quot;, &quot;access&quot;: &quot;Menu: Wireless -&gt; Evil Twin&quot;}], &quot;Web &amp; Exploit&quot;: [{&quot;tool&quot;: &quot;metasploit&quot;, &quot;purpose&quot;: &quot;Exploitation framework&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; Metasploit&quot;}, {&quot;tool&quot;: &quot;sqlmap&quot;, &quot;purpose&quot;: &quot;Automated SQL injection&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; SQLMap&quot;}, {&quot;tool&quot;: &quot;gobuster&quot;, &quot;purpose&quot;: &quot;Directory brute force&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; Gobuster&quot;}, {&quot;tool&quot;: &quot;nikto&quot;, &quot;purpose&quot;: &quot;Web server vuln scan&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; Nikto&quot;}, {&quot;tool&quot;: &quot;wpscan&quot;, &quot;purpose&quot;: &quot;WordPress security scan&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; WPScan&quot;}, {&quot;tool&quot;: &quot;nuclei&quot;, &quot;purpose&quot;: &quot;Template-based scanning&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; Nuclei&quot;}, {&quot;tool&quot;: &quot;searchsploit&quot;, &quot;purpose&quot;: &quot;Local exploit DB search&quot;, &quot;access&quot;: &quot;Menu: Exploit -&gt; Searchsploit&quot;}], &quot;Credentials &amp; Access&quot;: [{&quot;tool&quot;: &quot;hashcat&quot;, &quot;purpose&quot;: &quot;GPU hash cracking&quot;, &quot;access&quot;: &quot;CLI: `netreaper crack &lt;capture_or_hashfile&gt; --hashcat`&quot;}, {&quot;tool&quot;: &quot;john&quot;, &quot;purpose&quot;: &quot;CPU hash cracking&quot;, &quot;access&quot;: &quot;Menu: Credentials -&gt; John&quot;}, {&quot;tool&quot;: &quot;hydra&quot;, &quot;purpose&quot;: &quot;Online brute force (SSH/HTTP/DB)&quot;, &quot;access&quot;: &quot;Menu: Credentials -&gt; Hydra&quot;}, {&quot;tool&quot;: &quot;medusa&quot;, &quot;purpose&quot;: &quot;Parallel brute force&quot;, &quot;access&quot;: &quot;Menu: Credentials -&gt; Medusa&quot;}, {&quot;tool&quot;: &quot;crackmapexec&quot;, &quot;purpose&quot;: &quot;SMB/WinRM/LDAP abuse&quot;, &quot;access&quot;: &quot;Menu: Credentials -&gt; CrackMapExec&quot;}, {&quot;tool&quot;: &quot;impacket suite&quot;, &quot;purpose&quot;: &quot;Windows protocols, secrets, tickets&quot;, &quot;access&quot;: &quot;Menu: Post-Exploit -&gt; Impacket&quot;}], &quot;Intel &amp; OSINT&quot;: [{&quot;tool&quot;: &quot;theHarvester&quot;, &quot;purpose&quot;: &quot;Email/host OSINT collection&quot;, &quot;access&quot;: &quot;Menu: Intel -&gt; theHarvester&quot;}, {&quot;tool&quot;: &quot;recon-ng&quot;, &quot;purpose&quot;: &quot;Modular recon framework&quot;, &quot;access&quot;: &quot;Menu: Intel -&gt; Recon-NG&quot;}, {&quot;tool&quot;: &quot;shodan CLI&quot;, &quot;purpose&quot;: &quot;Internet search engine interface&quot;, &quot;access&quot;: &quot;Menu: Intel -&gt; Shodan&quot;}, {&quot;tool&quot;: &quot;tcpdump&quot;, &quot;purpose&quot;: &quot;Packet capture&quot;, &quot;access&quot;: &quot;Menu: Intel -&gt; Packet Capture&quot;}, {&quot;tool&quot;: &quot;wireshark&quot;, &quot;purpose&quot;: &quot;GUI traffic analysis&quot;, &quot;access&quot;: &quot;Menu: Intel -&gt; Wireshark&quot;}], &quot;Stress &amp; Network Performance&quot;: [{&quot;tool&quot;: &quot;hping3&quot;, &quot;purpose&quot;: &quot;Packet flooding/firewall testing&quot;, &quot;access&quot;: &quot;Menu: Stress -&gt; hping3&quot;}, {&quot;tool&quot;: &quot;iperf3&quot;, &quot;purpose&quot;: &quot;Throughput testing&quot;, &quot;access&quot;: &quot;Menu: Stress -&gt; iperf3&quot;}, {&quot;tool&quot;: &quot;ab (ApacheBench)&quot;, &quot;purpose&quot;: &quot;HTTP load testing&quot;, &quot;access&quot;: &quot;Menu: Stress -&gt; HTTP Load&quot;}, {&quot;tool&quot;: &quot;tc/netem&quot;, &quot;purpose&quot;: &quot;Latency/loss/jitter impairment&quot;, &quot;access&quot;: &quot;Menu: Stress -&gt; Netem (add/remove qdisc)&quot;}], &quot;Utilities &amp; Post-Exploitation&quot;: [{&quot;tool&quot;: &quot;ssh/socat/nc&quot;, &quot;purpose&quot;: &quot;Connectivity checks, tunnels, pivots&quot;, &quot;access&quot;: &quot;Menu: Post-Exploit -&gt; Tunnels/Utilities&quot;}, {&quot;tool&quot;: &quot;mimikatz (helpers)&quot;, &quot;purpose&quot;: &quot;Credential extraction on Windows targets&quot;, &quot;access&quot;: &quot;Menu: Post-Exploit -&gt; Mimikatz helpers&quot;}, {&quot;tool&quot;: &quot;loot manager&quot;, &quot;purpose&quot;: &quot;View/export captured credentials/artifacts&quot;, &quot;access&quot;: &quot;Menu: Sessions/Loot -&gt; View/Export&quot;}]}, &quot;modules&quot;: {&quot;wireless&quot;: [{&quot;name&quot;: &quot;validate_wireless_interface&quot;, &quot;desc&quot;: &quot;Validate wireless interface with optional monitor mode requirement Args: $1 = interface name, $2 = require_monitor (true/false) Returns: 0 if valid, 1 if invalid&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface name&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;require_monitor (true/false)&quot;}]}, {&quot;name&quot;: &quot;get_wireless_interface&quot;, &quot;desc&quot;: &quot;Get wireless interface from user Returns: sets IFACE variable&quot;, &quot;args&quot;: []}, {&quot;name&quot;: &quot;check_monitor_mode&quot;, &quot;desc&quot;: &quot;Check if interface is in monitor mode Args: $1 = interface name Returns: 0 if in monitor mode, 1 if not&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface name&quot;}]}, {&quot;name&quot;: &quot;start_monitor_mode&quot;, &quot;desc&quot;: &quot;Enable monitor mode on interface Args: $1 = interface name Returns: 0 on success, 1 on failure&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface name&quot;}]}, {&quot;name&quot;: &quot;stop_monitor_mode&quot;, &quot;desc&quot;: &quot;Disable monitor mode on interface Args: $1 = interface name Returns: 0 on success, 1 on failure&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface name&quot;}]}, {&quot;name&quot;: &quot;set_channel&quot;, &quot;desc&quot;: &quot;Set wireless channel Args: $1 = interface, $2 = channel&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;channel&quot;}]}, {&quot;name&quot;: &quot;run_channel_hop&quot;, &quot;desc&quot;: &quot;Channel hopping (runs in foreground until Ctrl+C) Args: $1 = interface&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}]}, {&quot;name&quot;: &quot;run_airodump&quot;, &quot;desc&quot;: &quot;Run airodump-ng network scan Args: $1 = interface&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}]}, {&quot;name&quot;: &quot;run_airodump_target&quot;, &quot;desc&quot;: &quot;Run airodump-ng targeting specific BSSID Args: $1 = interface, $2 = bssid, $3 = channel, $4 = output file (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;channel&quot;}, {&quot;pos&quot;: 4, &quot;label&quot;: &quot;output file (optional)&quot;}]}, {&quot;name&quot;: &quot;run_aireplay_deauth&quot;, &quot;desc&quot;: &quot;Run deauthentication attack Args: $1 = interface, $2 = bssid, $3 = client (optional, \&quot;all\&quot; for broadcast), $4 = count&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;client (optional, \&quot;all\&quot; for broadcast)&quot;}, {&quot;pos&quot;: 4, &quot;label&quot;: &quot;count&quot;}]}, {&quot;name&quot;: &quot;run_aireplay_fakeauth&quot;, &quot;desc&quot;: &quot;Run fake authentication Args: $1 = interface, $2 = bssid, $3 = source MAC (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;source MAC (optional)&quot;}]}, {&quot;name&quot;: &quot;run_aireplay_arp&quot;, &quot;desc&quot;: &quot;Run ARP replay attack Args: $1 = interface, $2 = bssid&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}]}, {&quot;name&quot;: &quot;run_aircrack&quot;, &quot;desc&quot;: &quot;Run aircrack-ng with wordlist Args: $1 = capture file, $2 = wordlist&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist&quot;}]}, {&quot;name&quot;: &quot;run_wifite&quot;, &quot;desc&quot;: &quot;Run wifite automated attack&quot;, &quot;args&quot;: []}, {&quot;name&quot;: &quot;run_wifite_target&quot;, &quot;desc&quot;: &quot;Run wifite targeting specific network Args: $1 = bssid (optional), $2 = channel (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;bssid (optional)&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;channel (optional)&quot;}]}, {&quot;name&quot;: &quot;run_bettercap&quot;, &quot;desc&quot;: &quot;Run bettercap WiFi recon Args: $1 = interface&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}]}, {&quot;name&quot;: &quot;run_reaver&quot;, &quot;desc&quot;: &quot;Run reaver WPS attack Args: $1 = interface, $2 = bssid, $3 = channel&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;channel&quot;}]}, {&quot;name&quot;: &quot;run_reaver_pixie&quot;, &quot;desc&quot;: &quot;Run reaver with Pixie Dust attack Args: $1 = interface, $2 = bssid, $3 = channel&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;channel&quot;}]}, {&quot;name&quot;: &quot;run_bully&quot;, &quot;desc&quot;: &quot;Run bully WPS attack Args: $1 = interface, $2 = bssid, $3 = channel&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;channel&quot;}]}, {&quot;name&quot;: &quot;capture_handshake&quot;, &quot;desc&quot;: &quot;Capture WPA handshake Args: $1 = interface, $2 = bssid, $3 = channel&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;bssid&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;channel&quot;}]}, {&quot;name&quot;: &quot;convert_to_hashcat&quot;, &quot;desc&quot;: &quot;Convert capture to hashcat format Args: $1 = capture file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}]}, {&quot;name&quot;: &quot;run_hashcat_wifi&quot;, &quot;desc&quot;: &quot;Run hashcat on WiFi handshake Args: $1 = hash file, $2 = wordlist&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;hash file&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist&quot;}]}, {&quot;name&quot;: &quot;wireless_menu&quot;, &quot;desc&quot;: &quot;Interactive wireless menu&quot;, &quot;args&quot;: []}], &quot;scanning&quot;: [{&quot;name&quot;: &quot;run_nmap_scan&quot;, &quot;desc&quot;: &quot;Run a basic nmap scan with require_tools dependency gate This is an example function demonstrating the require_tools and timed_run patterns Args: $1 = target (IP, hostname, or CIDR) Returns: 0 on success, 1 on failure&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (IP, hostname, or CIDR)&quot;}]}, {&quot;name&quot;: &quot;run_nmap_quick&quot;, &quot;desc&quot;: &quot;Run quick nmap scan Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_full&quot;, &quot;desc&quot;: &quot;Run full nmap scan Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_stealth&quot;, &quot;desc&quot;: &quot;Run stealth nmap scan Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_udp&quot;, &quot;desc&quot;: &quot;Run UDP nmap scan Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_vuln&quot;, &quot;desc&quot;: &quot;Run nmap vulnerability scan Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_service&quot;, &quot;desc&quot;: &quot;Run nmap service detection Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_os&quot;, &quot;desc&quot;: &quot;Run nmap OS detection Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nmap_custom&quot;, &quot;desc&quot;: &quot;Run nmap custom scan Args: $1 = target, $2 = nmap options&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;nmap options&quot;}]}, {&quot;name&quot;: &quot;run_masscan&quot;, &quot;desc&quot;: &quot;Run masscan fast port scan Args: $1 = target, $2 = ports (optional), $3 = rate (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;ports (optional)&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;rate (optional)&quot;}]}, {&quot;name&quot;: &quot;run_rustscan&quot;, &quot;desc&quot;: &quot;Run rustscan (fast scanner with nmap integration) Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_unicornscan&quot;, &quot;desc&quot;: &quot;Run unicornscan (async scanner) Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_zmap&quot;, &quot;desc&quot;: &quot;Run zmap (fast internet-wide scanner) Args: $1 = target/subnet, $2 = port&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target/subnet&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;port&quot;}]}, {&quot;name&quot;: &quot;run_smb_enum&quot;, &quot;desc&quot;: &quot;Enumerate SMB shares Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_snmp_enum&quot;, &quot;desc&quot;: &quot;Enumerate SNMP Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_ldap_enum&quot;, &quot;desc&quot;: &quot;Enumerate LDAP Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_nfs_enum&quot;, &quot;desc&quot;: &quot;Enumerate NFS Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_rpc_enum&quot;, &quot;desc&quot;: &quot;Enumerate RPC Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;scanning_menu&quot;, &quot;desc&quot;: &quot;Interactive scanning menu&quot;, &quot;args&quot;: []}], &quot;traffic&quot;: [{&quot;name&quot;: &quot;run_tcpdump&quot;, &quot;desc&quot;: &quot;Run tcpdump packet capture Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_tcpdump_filter&quot;, &quot;desc&quot;: &quot;Run tcpdump with filter Args: $1 = interface, $2 = filter expression&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;filter expression&quot;}]}, {&quot;name&quot;: &quot;run_tcpdump_live&quot;, &quot;desc&quot;: &quot;Run tcpdump with verbose output (live view) Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_wireshark&quot;, &quot;desc&quot;: &quot;Launch Wireshark GUI Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_wireshark_file&quot;, &quot;desc&quot;: &quot;Open capture file in Wireshark Args: $1 = capture file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}]}, {&quot;name&quot;: &quot;run_tshark&quot;, &quot;desc&quot;: &quot;Run tshark CLI capture Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_tshark_filter&quot;, &quot;desc&quot;: &quot;Run tshark with display filter Args: $1 = interface, $2 = display filter&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;display filter&quot;}]}, {&quot;name&quot;: &quot;run_tshark_analyze&quot;, &quot;desc&quot;: &quot;Analyze capture file with tshark Args: $1 = capture file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}]}, {&quot;name&quot;: &quot;run_tshark_extract_http&quot;, &quot;desc&quot;: &quot;Extract HTTP objects from capture Args: $1 = capture file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}]}, {&quot;name&quot;: &quot;run_ettercap&quot;, &quot;desc&quot;: &quot;Run ettercap for MITM attacks Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_bettercap_traffic&quot;, &quot;desc&quot;: &quot;Run bettercap for advanced MITM Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_arpspoof&quot;, &quot;desc&quot;: &quot;Run arpspoof for ARP spoofing Args: $1 = interface, $2 = target, $3 = gateway&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;target&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;gateway&quot;}]}, {&quot;name&quot;: &quot;run_responder&quot;, &quot;desc&quot;: &quot;Run Responder for LLMNR/NBT-NS poisoning Args: $1 = interface (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;interface (optional)&quot;}]}, {&quot;name&quot;: &quot;run_mitmproxy&quot;, &quot;desc&quot;: &quot;Run mitmproxy for HTTP/HTTPS interception Args: none&quot;, &quot;args&quot;: []}, {&quot;name&quot;: &quot;analyze_pcap&quot;, &quot;desc&quot;: &quot;Read and display pcap file summary Args: $1 = capture file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}]}, {&quot;name&quot;: &quot;extract_credentials&quot;, &quot;desc&quot;: &quot;Extract credentials from pcap Args: $1 = capture file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file&quot;}]}, {&quot;name&quot;: &quot;traffic_menu&quot;, &quot;desc&quot;: &quot;Main traffic menu&quot;, &quot;args&quot;: []}], &quot;exploit&quot;: [{&quot;name&quot;: &quot;run_metasploit&quot;, &quot;desc&quot;: &quot;Launch Metasploit console&quot;, &quot;args&quot;: []}, {&quot;name&quot;: &quot;run_metasploit_rc&quot;, &quot;desc&quot;: &quot;Launch Metasploit with resource script Args: $1 = resource script path&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;resource script path&quot;}]}, {&quot;name&quot;: &quot;run_msfvenom&quot;, &quot;desc&quot;: &quot;Run msfvenom payload generator Args: $1 = payload, $2 = lhost, $3 = lport, $4 = format, $5 = outfile&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;payload&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;lhost&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;lport&quot;}, {&quot;pos&quot;: 4, &quot;label&quot;: &quot;format&quot;}, {&quot;pos&quot;: 5, &quot;label&quot;: &quot;outfile&quot;}]}, {&quot;name&quot;: &quot;run_sqlmap&quot;, &quot;desc&quot;: &quot;Run SQLmap against target URL Args: $1 = target URL&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}]}, {&quot;name&quot;: &quot;run_sqlmap_advanced&quot;, &quot;desc&quot;: &quot;Run SQLmap with advanced options Args: $1 = target URL, $2 = additional options&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;additional options&quot;}]}, {&quot;name&quot;: &quot;run_nikto&quot;, &quot;desc&quot;: &quot;Run Nikto web scanner Args: $1 = target host/URL&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target host/URL&quot;}]}, {&quot;name&quot;: &quot;run_gobuster&quot;, &quot;desc&quot;: &quot;Run Gobuster directory brute force Args: $1 = target URL, $2 = wordlist (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}]}, {&quot;name&quot;: &quot;run_dirb&quot;, &quot;desc&quot;: &quot;Run DIRB directory brute force Args: $1 = target URL, $2 = wordlist (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}]}, {&quot;name&quot;: &quot;run_feroxbuster&quot;, &quot;desc&quot;: &quot;Run Feroxbuster Args: $1 = target URL, $2 = wordlist (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}]}, {&quot;name&quot;: &quot;run_nuclei&quot;, &quot;desc&quot;: &quot;Run Nuclei vulnerability scanner Args: $1 = target&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}]}, {&quot;name&quot;: &quot;run_searchsploit&quot;, &quot;desc&quot;: &quot;Search ExploitDB Args: $1 = search term&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;search term&quot;}]}, {&quot;name&quot;: &quot;run_xsstrike&quot;, &quot;desc&quot;: &quot;Run XSStrike XSS scanner Args: $1 = target URL&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}]}, {&quot;name&quot;: &quot;run_commix&quot;, &quot;desc&quot;: &quot;Run Commix command injection Args: $1 = target URL&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target URL&quot;}]}, {&quot;name&quot;: &quot;exploit_menu&quot;, &quot;desc&quot;: &quot;Interactive exploit menu&quot;, &quot;args&quot;: []}], &quot;credentials&quot;: [{&quot;name&quot;: &quot;convert_to_hashcat&quot;, &quot;desc&quot;: &quot;Convert capture file to hashcat format Args: $1 = capture file (optional, will prompt if not provided) Returns: path to converted file&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file (optional, will prompt if not provided)&quot;}]}, {&quot;name&quot;: &quot;run_hashcat_gpu&quot;, &quot;desc&quot;: &quot;Run hashcat with GPU acceleration Args: $1 = hash file (optional), $2 = wordlist (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;hash file (optional)&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}]}, {&quot;name&quot;: &quot;run_hashcat_rules&quot;, &quot;desc&quot;: &quot;Run hashcat with rule-based attack Args: $1 = hash file (optional), $2 = wordlist (optional), $3 = rules file (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;hash file (optional)&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;rules file (optional)&quot;}]}, {&quot;name&quot;: &quot;run_hashcat_custom&quot;, &quot;desc&quot;: &quot;Run hashcat with custom hash type Args: $1 = hash type, $2 = hash file, $3 = wordlist&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;hash type&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;hash file&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;wordlist&quot;}]}, {&quot;name&quot;: &quot;run_john&quot;, &quot;desc&quot;: &quot;Run John the Ripper on hash file Args: $1 = hash file (optional), $2 = wordlist (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;hash file (optional)&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}]}, {&quot;name&quot;: &quot;run_john_wifi&quot;, &quot;desc&quot;: &quot;Run John on WiFi capture file Args: $1 = capture file (optional), $2 = wordlist (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;capture file (optional)&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;wordlist (optional)&quot;}]}, {&quot;name&quot;: &quot;run_hydra&quot;, &quot;desc&quot;: &quot;Run Hydra brute force attack Args: $1 = target (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (optional)&quot;}]}, {&quot;name&quot;: &quot;run_hydra_ssh&quot;, &quot;desc&quot;: &quot;Run Hydra SSH attack (quick helper) Args: $1 = target, $2 = username, $3 = wordlist&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target&quot;}, {&quot;pos&quot;: 2, &quot;label&quot;: &quot;username&quot;}, {&quot;pos&quot;: 3, &quot;label&quot;: &quot;wordlist&quot;}]}, {&quot;name&quot;: &quot;run_medusa&quot;, &quot;desc&quot;: &quot;Run Medusa parallel brute force Args: $1 = target (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (optional)&quot;}]}, {&quot;name&quot;: &quot;run_crackmapexec&quot;, &quot;desc&quot;: &quot;Run CrackMapExec for AD/SMB attacks Args: $1 = target (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (optional)&quot;}]}, {&quot;name&quot;: &quot;run_cme_enum&quot;, &quot;desc&quot;: &quot;CrackMapExec SMB enumeration Args: $1 = target (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (optional)&quot;}]}, {&quot;name&quot;: &quot;run_ncrack&quot;, &quot;desc&quot;: &quot;Run Ncrack for network authentication cracking Args: $1 = target (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (optional)&quot;}]}, {&quot;name&quot;: &quot;run_secretsdump&quot;, &quot;desc&quot;: &quot;Extract hashes using impacket-secretsdump Args: $1 = target (optional)&quot;, &quot;args&quot;: [{&quot;pos&quot;: 1, &quot;label&quot;: &quot;target (optional)&quot;}]}, {&quot;name&quot;: &quot;credentials_menu&quot;, &quot;desc&quot;: &quot;Main credentials menu&quot;, &quot;args&quot;: []}]}}</script>
+
+<script>
+/* NETREAPER BioLab Command HUD (ULTRA) */
+const DATA = JSON.parse(document.getElementById("data").textContent);
+
+const state = {
+  activeModule: "scanning",
+  activeTool: null,
+  filter: "all",
+  backend: {
+    mode: "demo",
+    ws: null,
+    url: "ws://localhost:8787/ws"
+  },
+  job: null,
+  jobTimer: null,
+  jobAbort: null,
+  log: [],
+  map: {
+    nodes: [],
+    edges: [],
+    active: null,
+    autoRotate: true,
+    rotX: 0.25,
+    rotY: 0.00,
+    zoom: 1.0,
+    panX: 0,
+    panY: 0,
+    dragging: false,
+    dragMode: "rotate",
+    lastX: 0,
+    lastY: 0,
+    pulse: 0
+  },
+  metrics: {
+    series: Array.from({length:4}, ()=>[]),
+    maxLen: 64
+  }
+};
+
+const $ = (id)=>document.getElementById(id);
+const moduleList = $("moduleList");
+const toolList = $("toolList");
+const moduleMeta = $("moduleMeta");
+const toolMeta = $("toolMeta");
+const execMeta = $("execMeta");
+const fnName = $("fnName");
+const argFields = $("argFields");
+const cmdPreview = $("cmdPreview");
+const runBtn = $("runBtn");
+const stopBtn = $("stopBtn");
+const sessionId = $("sessionId");
+const progPct = $("progPct");
+const progBar = $("progBar");
+const stageList = $("stageList");
+const logEl = $("log");
+const backendState = $("backendState");
+const statusState = $("statusState");
+const logMode = $("logMode");
+
+const nodeName = $("nodeName");
+const nodeInfo = $("nodeInfo");
+const nodeCount = $("nodeCount");
+const edgeCount = $("edgeCount");
+const mapModePill = $("mapModePill");
+
+function ts(){
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2,"0");
+  const mm = String(d.getMinutes()).padStart(2,"0");
+  const ss = String(d.getSeconds()).padStart(2,"0");
+  return `${hh}:${mm}:${ss}`;
+}
+
+function toast(title, msg){
+  const host = $("toast");
+  const div = document.createElement("div");
+  div.className = "toastItem";
+  div.innerHTML = `<b>${escapeHtml(title)}</b><div class="smallNote">${escapeHtml(msg)}</div>`;
+  host.appendChild(div);
+  setTimeout(()=>div.remove(), 4200);
+}
+
+function escapeHtml(s){
+  return (s??"").toString().replace(/[&<>"']/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function addLog(level, message, details=null){
+  const entry = { ts: ts(), level, message, details };
+  state.log.push(entry);
+  if (state.log.length > 400) state.log.shift();
+  renderLog();
+}
+
+function renderLog(){
+  const f = state.filter;
+  logMode.textContent = `Filter: ${f}`;
+  const items = state.log.filter(x=> f==="all" ? true : x.level===f);
+  logEl.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for(const it of items.slice(-200)){
+    const div = document.createElement("div");
+    div.className = "line";
+    const lvl = it.level;
+    div.innerHTML = `<span class="ts">${it.ts}</span><span class="lvl ${lvl}">${lvl}</span><span class="msg">${escapeHtml(it.message)}</span>`;
+    if (it.details){
+      const pre = document.createElement("pre");
+      pre.textContent = (typeof it.details === "string") ? it.details : JSON.stringify(it.details, null, 2);
+      div.appendChild(pre);
+    }
+    frag.appendChild(div);
+  }
+  logEl.appendChild(frag);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setStatus(s){ statusState.textContent = s; }
+function setBackendMode(mode){ state.backend.mode = mode; backendState.textContent = mode.toUpperCase(); }
+
+function buildModules(){
+  const defs = [
+    {key:"scanning", name:"Recon / Scanning", desc:"Nmap, masscan, rustscan, netdiscover. Discovery + vuln pivots.", icon:"🧪"},
+    {key:"wireless", name:"Wireless", desc:"Monitor mode, capture, deauth, evil twin workflows.", icon:"📡"},
+    {key:"traffic", name:"Traffic", desc:"tcpdump/tshark, mitm helpers, flow & capture analysis.", icon:"🧬"},
+    {key:"exploit", name:"Exploit", desc:"Metasploit, web scanning, brute force helpers.", icon:"💉"},
+    {key:"credentials", name:"Credentials", desc:"Hash conversion, cracking helpers, credential workflows.", icon:"🔐"},
+  ];
+
+  moduleList.innerHTML = "";
+  for(const m of defs){
+    const count = (DATA.modules[m.key]||[]).length;
+    const div = document.createElement("div");
+    div.className = "module" + (m.key===state.activeModule ? " active" : "");
+    div.dataset.key = m.key;
+    div.innerHTML = `
+      <div class="bar"></div>
+      <div class="t">
+        <div class="name">${m.icon} ${m.name}</div>
+        <div class="count">${count} fn</div>
+      </div>
+      <div class="d">${escapeHtml(m.desc)}</div>
+    `;
+    div.addEventListener("click", ()=>selectModule(m.key));
+    moduleList.appendChild(div);
+  }
+}
+
+function selectModule(key){
+  state.activeModule = key;
+  state.activeTool = null;
+  [...document.querySelectorAll(".module")].forEach(n=>n.classList.toggle("active", n.dataset.key===key));
+  moduleMeta.textContent = key.toUpperCase();
+  buildTools();
+  selectTool(null);
+}
+
+function buildTools(filterText=""){
+  const list = DATA.modules[state.activeModule] || [];
+  const q = filterText.trim().toLowerCase();
+  const filtered = q ? list.filter(t => (t.name+t.desc).toLowerCase().includes(q)) : list;
+
+  toolList.innerHTML = "";
+  toolMeta.textContent = `${filtered.length} function${filtered.length===1?"":"s"}`;
+
+  for(const t of filtered){
+    const div = document.createElement("div");
+    div.className = "toolCard";
+    const tag = (t.args && t.args.length) ? `${t.args.length} arg` : "no args";
+    div.innerHTML = `
+      <div class="row">
+        <div class="fn">${escapeHtml(t.name)}</div>
+        <div class="tag">${tag}</div>
+      </div>
+      <div class="desc">${escapeHtml(shorten(t.desc, 140))}</div>
+    `;
+    div.addEventListener("click", ()=>selectTool(t));
+    toolList.appendChild(div);
+  }
+}
+
+function shorten(s,n){
+  s = (s||"").replace(/\s+/g," ").trim();
+  return s.length>n ? s.slice(0,n-1)+"…" : s;
+}
+
+function selectTool(t){
+  state.activeTool = t;
+  [...document.querySelectorAll(".toolCard")].forEach(n=>n.classList.remove("active"));
+  if (t){
+    // mark active
+    const card = [...document.querySelectorAll(".toolCard")].find(n=>n.querySelector(".fn")?.textContent===t.name);
+    if(card) card.classList.add("active");
+    fnName.value = t.name;
+    execMeta.textContent = (t.desc||"").split("Args:")[0].trim() || "—";
+    runBtn.disabled = false;
+    stopBtn.disabled = true;
+    renderArgs(t);
+    updateCmdPreview();
+    setStages(defaultStagesForModule(state.activeModule));
+  } else {
+    fnName.value = "—";
+    execMeta.textContent = "Select a tool.";
+    runBtn.disabled = true;
+    stopBtn.disabled = true;
+    argFields.innerHTML = "";
+    cmdPreview.value = "—";
+    setStages([]);
+  }
+}
+
+function renderArgs(t){
+  argFields.innerHTML = "";
+  const args = (t.args||[]).slice().sort((a,b)=>a.pos-b.pos);
+  if (!args.length){
+    const div = document.createElement("div");
+    div.className = "field";
+    div.style.gridColumn = "1/-1";
+    div.innerHTML = `<label>No arguments</label><input disabled value="This function takes no positional args."/>`;
+    argFields.appendChild(div);
+    return;
+  }
+  for(const a of args){
+    const div = document.createElement("div");
+    div.className = "field";
+    div.innerHTML = `<label>$${a.pos} — ${escapeHtml(a.label)}</label><input data-pos="${a.pos}" placeholder="${escapeHtml(a.label)}" />`;
+    div.querySelector("input").addEventListener("input", updateCmdPreview);
+    argFields.appendChild(div);
+  }
+}
+
+function updateCmdPreview(){
+  const t = state.activeTool;
+  if(!t) return;
+  const args = [...argFields.querySelectorAll("input[data-pos]")].sort((a,b)=>Number(a.dataset.pos)-Number(b.dataset.pos));
+  const values = args.map(x=>x.value.trim()).filter(Boolean);
+  const prefix = `netreaper ${state.activeModule} ${t.name}`;
+  const line = values.length ? `${prefix} ${values.map(shellQuote).join(" ")}` : prefix;
+  cmdPreview.value = line;
+}
+
+function shellQuote(s){
+  if (s==null) return "''";
+  if (/^[a-zA-Z0-9_\-./:]+$/.test(s)) return s;
+  return "'" + s.replace(/'/g, "'\\''") + "'";
+}
+
+/* ---------- Execution Simulation + Backend Hook ---------- */
+
+function defaultStagesForModule(mod){
+  if(mod==="scanning") return ["Acquire target", "Port discovery", "Service fingerprint", "Vuln scripts", "Report synthesis"];
+  if(mod==="wireless") return ["Validate interface", "Enable monitor mode", "Scan beacons", "Capture/Attack", "Artifact export"];
+  if(mod==="traffic") return ["Bind interface", "Capture start", "Decode streams", "Extract IOCs", "Write pcap/report"];
+  if(mod==="exploit") return ["Recon surface", "Enumerate vectors", "Exploit attempt", "Verify access", "Loot/session"];
+  if(mod==="credentials") return ["Collect artifacts", "Normalize/convert", "Attack strategy", "Crack loop", "Store results"];
+  return ["Initialize", "Execute", "Finalize"];
+}
+
+function setStages(names){
+  stageList.innerHTML = "";
+  state.jobStages = names.map((n)=>({name:n, state:"idle"}));
+  for(const st of state.jobStages){
+    const div = document.createElement("div");
+    div.className = "stage";
+    div.innerHTML = `<div class="s">${escapeHtml(st.name)}</div><div class="dot"></div>`;
+    stageList.appendChild(div);
+  }
+}
+
+function updateStages(activeIndex, fail=false){
+  const nodes = [...stageList.querySelectorAll(".stage")];
+  nodes.forEach((n,i)=>{
+    n.classList.remove("done","active","fail");
+    if (i < activeIndex) n.classList.add("done");
+    else if (i === activeIndex) n.classList.add(fail ? "fail" : "active");
+  });
+}
+
+function setProgress(p){
+  p = Math.max(0, Math.min(1, p));
+  progPct.textContent = `${Math.round(p*100)}%`;
+  progBar.style.width = `${Math.round(p*100)}%`;
+}
+
+function newSessionId(){
+  return "NR-" + Math.random().toString(16).slice(2,10).toUpperCase();
+}
+
+async function runSelected(){
+  if(!state.activeTool || state.job) return;
+  const sid = newSessionId();
+  sessionId.textContent = sid;
+  setStatus("RUNNING");
+  runBtn.disabled = true;
+  stopBtn.disabled = false;
+  setProgress(0);
+  mapModePill.textContent = "Mode: Active";
+  toast("Operation started", `${state.activeModule} • ${state.activeTool.name}`);
+
+  const payload = {
+    type:"run",
+    session:sid,
+    module: state.activeModule,
+    function: state.activeTool.name,
+    args: collectArgs(),
+    command_preview: cmdPreview.value,
+    ts: Date.now()
+  };
+
+  state.job = payload;
+  state.jobAbort = new AbortController();
+
+  addLog("info", `Dispatch: ${payload.command_preview}`, payload);
+
+  if (state.backend.mode === "live") {
+    try {
+      await sendToBackend(payload);
+    } catch (e) {
+      addLog("err","Backend dispatch failed; falling back to demo.", String(e));
+      setBackendMode("demo");
+      simulateJob(payload);
+    }
+  } else {
+    simulateJob(payload);
+  }
+}
+
+function collectArgs(){
+  const args = [...argFields.querySelectorAll("input[data-pos]")].sort((a,b)=>Number(a.dataset.pos)-Number(b.dataset.pos));
+  return args.map(x=>x.value.trim());
+}
+
+function stopJob(){
+  if(!state.job) return;
+  addLog("warn","Stop requested.", {session: state.job.session});
+  setStatus("STOPPING");
+  if (state.jobAbort) state.jobAbort.abort();
+  if (state.jobTimer) clearInterval(state.jobTimer);
+  state.jobTimer = null;
+  state.job = null;
+  runBtn.disabled = false;
+  stopBtn.disabled = true;
+  setStatus("READY");
+  mapModePill.textContent = "Mode: Passive";
+  toast("Operation stopped", "Session halted.");
+}
+
+function simulateJob(job){
+  const stages = state.jobStages || defaultStagesForModule(state.activeModule);
+  let idx = 0;
+  let p = 0;
+
+  if (job.module==="scanning" || job.module==="wireless" || job.module==="traffic") {
+    mapInjectDemo(false);
+  }
+
+  updateStages(0,false);
+  addLog("info", `Simulated runner engaged (no backend).`, {mode:"demo"});
+
+  state.jobTimer = setInterval(()=>{
+    if(!state.job) return;
+    p += 0.03 + Math.random()*0.04;
+    if(p>1) p=1;
+    setProgress(p);
+
+    const targetIdx = Math.min(stages.length-1, Math.floor(p*stages.length));
+    if (targetIdx !== idx) {
+      idx = targetIdx;
+      updateStages(idx,false);
+      addLog("info", `Stage: ${stages[idx]}`, {stage: idx+1, of: stages.length});
+    }
+
+    emitDemoOutput(job, p);
+    tickMetrics(job);
+
+    if (p >= 1) {
+      clearInterval(state.jobTimer);
+      state.jobTimer = null;
+      updateStages(stages.length-1,false);
+      setProgress(1);
+      setStatus("READY");
+      runBtn.disabled = false;
+      stopBtn.disabled = true;
+      addLog("ok", `Completed: ${job.function}`, {session: job.session});
+      toast("Operation complete", `Session ${job.session} finished.`);
+      mapModePill.textContent = "Mode: Passive";
+      state.job = null;
+    }
+  }, 220);
+}
+
+function emitDemoOutput(job, p){
+  const mod = job.module;
+  const spice = () => Math.random();
+  if (mod==="scanning") {
+    if (spice()<0.35) addLog("info", `Probing target: ${job.args[0]||"127.0.0.1"} • ttl jitter=${(10+Math.random()*40)|0}ms`);
+    if (spice()<0.25) addLog("ok", `Host alive • RTT ~${(1+Math.random()*18).toFixed(1)}ms`);
+    if (spice()<0.20) addLog("info", `Ports discovered: 22, 80, 443, ${(1000+Math.random()*8000)|0}`);
+    if (spice()<0.12) addLog("warn", `Script timeout on NSE category 'vuln' — auto retry`);
+    if (spice()<0.10) addLog("ok", `Fingerprint: nginx/1.${(10+Math.random()*15)|0} • OpenSSH_${(7+Math.random()*3).toFixed(1)}`);
+  } else if (mod==="wireless") {
+    if (spice()<0.30) addLog("info", `Channel hop: ch ${1+((Math.random()*11)|0)} • RSSI=${(-20 - Math.random()*60).toFixed(0)}dBm`);
+    if (spice()<0.18) addLog("ok", `BSSID seen: ${randMac()} • WPA2 • clients=${(Math.random()*9)|0}`);
+    if (spice()<0.12) addLog("warn", `Deauth rate-limited • backing off`);
+    if (spice()<0.10) addLog("ok", `Handshake captured • writing .cap + .hccapx`);
+  } else if (mod==="traffic") {
+    if (spice()<0.30) addLog("info", `Capture: ${(200+Math.random()*1200)|0} packets • flows=${(20+Math.random()*200)|0}`);
+    if (spice()<0.14) addLog("warn", `Suspicious DNS burst • domain=cdn-${(Math.random()*999)|0}.example`);
+    if (spice()<0.10) addLog("ok", `TLS SNI extracted • ${pick(["api","auth","payments","cdn"])}.${pick(["corp","lab","edge"])}.local`);
+  } else if (mod==="exploit") {
+    if (spice()<0.25) addLog("info", `Enumerating endpoints • depth=${1+((Math.random()*3)|0)} • threads=${6+((Math.random()*10)|0)}`);
+    if (spice()<0.14) addLog("warn", `WAF signature hit • switching payload encoding`);
+    if (spice()<0.10) addLog("ok", `Potential injection point: param='id' • confidence=${(65+Math.random()*30)|0}%`);
+    if (spice()<0.08) addLog("ok", `Session established (low-priv) • beacon=${(Math.random()*9999)|0}`);
+  } else if (mod==="credentials") {
+    if (spice()<0.25) addLog("info", `Preparing masks/rules • candidates=${(1e6+Math.random()*9e6)|0}`);
+    if (spice()<0.14) addLog("info", `hashcat: ${(200+Math.random()*2600)|0} kH/s • temp=${(45+Math.random()*20)|0}C`);
+    if (spice()<0.10) addLog("ok", `Cracked: user${(Math.random()*90)|0} : ${pick(["winter2025!","labrat123","neon$park","SodiumChloride!"])}`);
+  }
+}
+
+function tickMetrics(job){
+  const mod = job.module;
+  const push = (i,val)=>{
+    const s = state.metrics.series[i];
+    s.push(val);
+    if (s.length > state.metrics.maxLen) s.shift();
+  };
+  push(0, mod==="scanning" ? 30+Math.random()*120 : 10+Math.random()*40);
+  push(1, mod==="traffic" ? 400+Math.random()*1800 : 120+Math.random()*600);
+  push(2, mod==="credentials" ? 2+Math.random()*18 : 0.5+Math.random()*5);
+  push(3, 20+Math.random()*65);
+  renderSparks();
+}
+
+function pick(a){ return a[(Math.random()*a.length)|0]; }
+function randMac(){ return Array.from({length:6}, ()=>("0"+((Math.random()*256)|0).toString(16)).slice(-2)).join(":"); }
+
+/* ---------- Backend WebSocket Integration (optional) ---------- */
+
+function connectBackend(){
+  try {
+    const ws = new WebSocket(state.backend.url);
+    ws.onopen = ()=>{
+      state.backend.ws = ws;
+      setBackendMode("live");
+      addLog("ok","Backend connected.", {url: state.backend.url});
+      toast("Backend connected", state.backend.url);
+    };
+    ws.onmessage = (ev)=>{
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type==="log") addLog(msg.level||"info", msg.message||"(log)", msg.details||null);
+        if (msg.type==="progress") {
+          if (typeof msg.p === "number") setProgress(msg.p);
+          if (typeof msg.stage === "number") updateStages(msg.stage, !!msg.fail);
+        }
+        if (msg.type==="map") {
+          if (msg.nodes) mapIngest(msg.nodes, msg.edges||[]);
+        }
+      } catch(e){
+        addLog("warn","Non-JSON backend message", String(ev.data).slice(0,500));
+      }
+    };
+    ws.onclose = ()=>{
+      state.backend.ws = null;
+      setBackendMode("demo");
+      addLog("warn","Backend disconnected.", null);
+      toast("Backend disconnected","Falling back to demo.");
+    };
+    ws.onerror = ()=>{};
+  } catch(e){
+    addLog("err","Failed to init WebSocket.", String(e));
+  }
+}
+
+function sendToBackend(obj){
+  return new Promise((resolve,reject)=>{
+    const ws = state.backend.ws;
+    if(!ws || ws.readyState !== 1) return reject(new Error("WebSocket not connected"));
+    ws.send(JSON.stringify(obj));
+    resolve();
+  });
+}
+
+/* ---------- Holographic Map (Canvas pseudo-3D) ---------- */
+
+const mapCanvas = $("mapCanvas");
+const mctx = mapCanvas.getContext("2d");
+let mw=0,mh=0,mdpr=1;
+
+function mapResize(){
+  mdpr = Math.min(2, window.devicePixelRatio||1);
+  mw = mapCanvas.clientWidth;
+  mh = mapCanvas.clientHeight;
+  mapCanvas.width = Math.floor(mw*mdpr);
+  mapCanvas.height = Math.floor(mh*mdpr);
+  mctx.setTransform(mdpr,0,0,mdpr,0,0);
+}
+window.addEventListener("resize", mapResize);
+
+function project3D(x,y,z){
+  const zoom = state.map.zoom;
+  const camZ = 3.2 / zoom;
+  const pz = (z + camZ);
+  const f = 1.6 / Math.max(0.2, pz);
+  const sx = (x * f) * (mw*0.38) + mw*0.5 + state.map.panX;
+  const sy = (y * f) * (mh*0.38) + mh*0.52 + state.map.panY;
+  return {x:sx, y:sy, f};
+}
+
+function rotate(x,y,z){
+  const rx = state.map.rotX, ry = state.map.rotY;
+  let cy = Math.cos(ry), sy = Math.sin(ry);
+  let cx = Math.cos(rx), sx = Math.sin(rx);
+  let x1 = x*cy + z*sy;
+  let z1 = -x*sy + z*cy;
+  let y2 = y*cx - z1*sx;
+  let z2 = y*sx + z1*cx;
+  return [x1,y2,z2];
+}
+
+function mapRender(){
+  if(!mw || !mh) mapResize();
+  mctx.clearRect(0,0,mw,mh);
+
+  const g = mctx.createRadialGradient(mw*0.5,mh*0.45, 10, mw*0.5,mh*0.45, Math.max(mw,mh)*0.7);
+  g.addColorStop(0, "rgba(88,255,176,0.09)");
+  g.addColorStop(0.45, "rgba(122,167,255,0.05)");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  mctx.fillStyle = g;
+  mctx.fillRect(0,0,mw,mh);
+
+  if (state.map.pulse>0) {
+    const p = state.map.pulse;
+    const r = (1-p)*Math.min(mw,mh)*0.45;
+    mctx.strokeStyle = `rgba(88,255,176,${0.20*p})`;
+    mctx.lineWidth = 2;
+    mctx.beginPath();
+    mctx.arc(mw*0.5, mh*0.52, r, 0, Math.PI*2);
+    mctx.stroke();
+    state.map.pulse -= 0.015;
+  }
+
+  const pts = state.map.nodes.map(n=>{
+    const [x,y,z] = rotate(n.x,n.y,n.z);
+    const p = project3D(x,y,z);
+    return {...n, rx:x, ry:y, rz:z, sx:p.x, sy:p.y, f:p.f};
+  });
+
+  mctx.lineWidth = 1;
+  for(const e of state.map.edges){
+    const a = pts.find(p=>p.id===e.a);
+    const b = pts.find(p=>p.id===e.b);
+    if(!a||!b) continue;
+    const alpha = 0.10 + Math.min(0.22, (a.f+b.f)*0.08);
+    mctx.strokeStyle = `rgba(122,167,255,${alpha})`;
+    mctx.beginPath();
+    mctx.moveTo(a.sx,a.sy);
+    mctx.lineTo(b.sx,b.sy);
+    mctx.stroke();
+  }
+
+  pts.sort((a,b)=>a.f-b.f);
+  for(const n of pts){
+    const r = 4 + n.f*9;
+    const isActive = state.map.active && state.map.active.id===n.id;
+    const glow = isActive ? 0.28 : 0.14 + n.f*0.10;
+    const col = isActive ? "rgba(88,255,176,1)" : "rgba(122,167,255,1)";
+    mctx.fillStyle = col.replace("1)", `${glow})`);
+    mctx.beginPath();
+    mctx.arc(n.sx,n.sy,r*2.2,0,Math.PI*2);
+    mctx.fill();
+    mctx.fillStyle = col.replace("1)", `${0.55 + n.f*0.3})`);
+    mctx.beginPath();
+    mctx.arc(n.sx,n.sy,r,0,Math.PI*2);
+    mctx.fill();
+    if (n.f > 0.55 || isActive) {
+      mctx.font = `12px ${getComputedStyle(document.body).fontFamily}`;
+      mctx.fillStyle = `rgba(214,226,255,${0.35 + n.f*0.35})`;
+      mctx.fillText(n.label, n.sx + 10, n.sy - 10);
+    }
+  }
+
+  nodeCount.textContent = String(state.map.nodes.length);
+  edgeCount.textContent = String(state.map.edges.length);
+
+  if(state.map.autoRotate) {
+    state.map.rotY += 0.002;
+    state.map.rotX += 0.0006;
+  }
+
+  requestAnimationFrame(mapRender);
+}
+
+function mapReset(){
+  state.map.nodes = [];
+  state.map.edges = [];
+  state.map.active = null;
+  state.map.zoom = 1.0;
+  state.map.panX = 0;
+  state.map.panY = 0;
+  nodeName.textContent = "—";
+  nodeInfo.textContent = "Click a node to inspect.";
+  toast("Map reset","Topology cleared.");
+}
+
+function mapPulse(){ state.map.pulse = 1.0; addLog("info","Map pulse emitted."); }
+
+function mapInjectDemo(announce=true){
+  const base = state.map.nodes.length ? state.map.nodes.length : 0;
+  const mk = (id,label)=>({id, label, ports:[22,80,443].slice(0, 1+((Math.random()*3)|0)),
+    x:(Math.random()*2-1), y:(Math.random()*2-1), z:(Math.random()*2-1),
+    meta:{ip:`10.0.0.${10+id}`, os: pick(["linux","windows","iot","router"]), risk: pick(["low","med","high"])}});
+  const nodes = [];
+  for(let i=0;i<6;i++) nodes.push(mk(base+i, `node-${base+i}`));
+  const gw = mk(base+20, "gateway"); gw.x=0; gw.y=0; gw.z=0; gw.ports=[53,67,80,443];
+  const ext = mk(base+21, "uplink"); ext.x=0.9; ext.y=-0.6; ext.z=-0.2; ext.ports=[443,8443];
+  nodes.push(gw, ext);
+
+  const edges = [];
+  for(const n of nodes) if(n.id!==gw.id) edges.push({a:gw.id, b:n.id});
+  edges.push({a:nodes[0].id,b:nodes[1].id});
+  edges.push({a:nodes[2].id,b:nodes[4].id});
+
+  mapIngest(nodes, edges);
+  if(announce){
+    toast("Demo scan injected", "Nodes and links added to holographic map.");
+    addLog("ok","Injected demo discovery results into map.", {nodes:nodes.length, edges:edges.length});
+  }
+}
+
+function mapIngest(nodes, edges){
+  const byId = new Map(state.map.nodes.map(n=>[n.id,n]));
+  for(const n of nodes) byId.set(n.id, n);
+  state.map.nodes = [...byId.values()];
+  const ek = new Set(state.map.edges.map(e=>`${e.a}-${e.b}`));
+  for(const e of edges){
+    const k = `${e.a}-${e.b}`;
+    const k2 = `${e.b}-${e.a}`;
+    if(!ek.has(k) && !ek.has(k2)){
+      state.map.edges.push(e);
+      ek.add(k);
+    }
+  }
+}
+
+function mapPick(mx,my){
+  const pts = state.map.nodes.map(n=>{
+    const [x,y,z] = rotate(n.x,n.y,n.z);
+    const p = project3D(x,y,z);
+    return {...n, sx:p.x, sy:p.y, f:p.f};
+  });
+  let best=null, bestD=1e9;
+  for(const n of pts){
+    const d = Math.hypot(n.sx-mx,n.sy-my);
+    const r = 10 + n.f*10;
+    if(d < r && d < bestD){ bestD=d; best=n; }
+  }
+  return best;
+}
+
+mapCanvas.addEventListener("mousedown",(e)=>{
+  state.map.dragging = true;
+  state.map.lastX = e.clientX;
+  state.map.lastY = e.clientY;
+  state.map.dragMode = e.shiftKey ? "pan" : "rotate";
+});
+window.addEventListener("mouseup",()=>{ state.map.dragging=false; });
+window.addEventListener("mousemove",(e)=>{
+  if(!state.map.dragging) return;
+  const dx = e.clientX - state.map.lastX;
+  const dy = e.clientY - state.map.lastY;
+  state.map.lastX = e.clientX;
+  state.map.lastY = e.clientY;
+  if(state.map.dragMode==="pan"){ state.map.panX += dx; state.map.panY += dy; }
+  else { state.map.rotY += dx * 0.004; state.map.rotX += dy * 0.003; }
+});
+mapCanvas.addEventListener("wheel",(e)=>{
+  e.preventDefault();
+  const z = Math.sign(e.deltaY);
+  state.map.zoom *= (z>0 ? 0.92 : 1.08);
+  state.map.zoom = Math.max(0.55, Math.min(2.2, state.map.zoom));
+}, {passive:false});
+mapCanvas.addEventListener("click",(e)=>{
+  const rect = mapCanvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left);
+  const my = (e.clientY - rect.top);
+  const n = mapPick(mx,my);
+  if(n){
+    state.map.active = n;
+    nodeName.textContent = n.label;
+    const meta = n.meta||{};
+    nodeInfo.textContent = `${meta.ip||"?"} • ${meta.os||"unknown"} • risk=${meta.risk||"?"} • ports=${(n.ports||[]).join(",")||"—"}`;
+    addLog("info","Node selected.", {id:n.id, label:n.label, meta});
+  }
+});
+
+/* ---------- Sparklines ---------- */
+
+function renderSpark(canvas, series){
+  const ctx = canvas.getContext("2d");
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  const w = canvas.clientWidth || 260;
+  const h = canvas.clientHeight || 70;
+  canvas.width = Math.floor(w*dpr);
+  canvas.height = Math.floor(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+
+  ctx.strokeStyle = "rgba(122,167,255,.35)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for(let i=1;i<4;i++){ const y = (h*i/4); ctx.moveTo(0,y); ctx.lineTo(w,y); }
+  ctx.stroke();
+
+  if(!series.length) return;
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const span = Math.max(1e-9, max-min);
+
+  const draw = (lw, alpha)=>{
+    ctx.strokeStyle = `rgba(88,255,176,${alpha})`;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    for(let i=0;i<series.length;i++){
+      const x = (i/(series.length-1))*w;
+      const y = h - ((series[i]-min)/span)*h;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  };
+  draw(2, 0.75);
+  draw(6, 0.18);
+}
+
+function renderSparks(){
+  const s = state.metrics.series;
+  renderSpark($("spark1"), s[0]);
+  renderSpark($("spark2"), s[1]);
+  renderSpark($("spark3"), s[2]);
+  renderSpark($("spark4"), s[3]);
+  $("spark1v").textContent = (s[0].at(-1)||0).toFixed(0);
+  $("spark2v").textContent = (s[1].at(-1)||0).toFixed(0);
+  $("spark3v").textContent = (s[2].at(-1)||0).toFixed(1);
+  $("spark4v").textContent = (s[3].at(-1)||0).toFixed(0);
+}
+
+/* ---------- Background Bio Bubbles (Canvas) ---------- */
+
+const bgCanvas = $("bgCanvas");
+const bctx = bgCanvas.getContext("2d", {alpha:true});
+let bw=0,bh=0,bdpr=1;
+const bubbles = [];
+function bgResize(){
+  bdpr = Math.min(2, window.devicePixelRatio||1);
+  bw = bgCanvas.clientWidth = window.innerWidth;
+  bh = bgCanvas.clientHeight = window.innerHeight;
+  bgCanvas.width = Math.floor(bw*bdpr);
+  bgCanvas.height = Math.floor(bh*bdpr);
+  bctx.setTransform(bdpr,0,0,bdpr,0,0);
+  bubbles.length = 0;
+  const n = Math.floor((bw*bh)/52000);
+  for(let i=0;i<n;i++) bubbles.push(makeBubble(true));
+}
+function makeBubble(anywhere=false){
+  const r = 8 + Math.random()*28;
+  return {
+    x: Math.random()*bw,
+    y: anywhere ? Math.random()*bh : (bh + r + Math.random()*200),
+    r,
+    vx: (-0.15 + Math.random()*0.3),
+    vy: (0.35 + Math.random()*0.85),
+    hue: (150 + Math.random()*80),
+    a: 0.05 + Math.random()*0.11,
+    wob: Math.random()*Math.PI*2,
+    wobSp: 0.006 + Math.random()*0.02
+  };
+}
+function drawBubble(b){
+  const grad = bctx.createRadialGradient(b.x-b.r*0.25, b.y-b.r*0.25, b.r*0.2, b.x, b.y, b.r);
+  grad.addColorStop(0, `hsla(${b.hue}, 95%, 70%, ${b.a*1.4})`);
+  grad.addColorStop(0.55, `hsla(${b.hue+10}, 95%, 55%, ${b.a})`);
+  grad.addColorStop(1, `hsla(${b.hue+20}, 95%, 25%, 0)`);
+  bctx.fillStyle = grad;
+  bctx.beginPath();
+  bctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+  bctx.fill();
+  bctx.strokeStyle = `hsla(${b.hue+30}, 100%, 85%, ${b.a*0.7})`;
+  bctx.lineWidth = 1;
+  bctx.beginPath();
+  bctx.arc(b.x-b.r*0.15, b.y-b.r*0.2, b.r*0.55, 0.1, Math.PI*1.2);
+  bctx.stroke();
+}
+function bgStep(){
+  bctx.clearRect(0,0,bw,bh);
+  for(const b of bubbles){
+    b.wob += b.wobSp;
+    b.x += b.vx + Math.sin(b.wob)*0.25;
+    b.y -= b.vy;
+    if (b.y + b.r < -80) Object.assign(b, makeBubble(false));
+    drawBubble(b);
+  }
+  requestAnimationFrame(bgStep);
+}
+
+/* ---------- Wiring ---------- */
+
+function wireUI(){
+  document.querySelectorAll(".pillBtn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll(".pillBtn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      state.filter = btn.dataset.filter;
+      renderLog();
+    });
+  });
+
+  $("clearLog").addEventListener("click", ()=>{ state.log=[]; renderLog(); toast("Console cleared",""); });
+  $("exportLog").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify({generated: Date.now(), log: state.log}, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `netreaper_log_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $("sendBtn").addEventListener("click", ()=>sendConsole());
+  $("demoBurst").addEventListener("click", ()=>{
+    for(let i=0;i<12;i++) emitDemoOutput({module: state.activeModule, function: state.activeTool?.name||"noop", args:[]}, Math.random());
+    toast("Demo burst","Injected sample console noise.");
+  });
+
+  function sendConsole(){
+    const txt = $("consoleInput").value.trim();
+    if(!txt) return;
+    $("consoleInput").value = "";
+    addLog("info", `Console send: ${txt}`);
+    if(state.backend.mode==="live"){
+      let payload = null;
+      try { payload = JSON.parse(txt); } catch { payload = {type:"console", text: txt}; }
+      sendToBackend(payload).catch(e=>addLog("err","Backend send failed.", String(e)));
+    }
+  }
+
+  runBtn.addEventListener("click", runSelected);
+  stopBtn.addEventListener("click", stopJob);
+
+  const search = $("search");
+  $("clearSearch").addEventListener("click", ()=>{ search.value=""; buildTools(""); });
+  search.addEventListener("input", ()=>buildTools(search.value));
+  window.addEventListener("keydown",(e)=>{
+    if(e.key === "/"){ e.preventDefault(); search.focus(); }
+    if(e.key === "Enter" && document.activeElement !== search){ runSelected(); }
+    if(e.key === "Escape"){ search.blur(); }
+  });
+
+  $("mapReset").addEventListener("click", mapReset);
+  $("mapPulse").addEventListener("click", mapPulse);
+  $("mapAuto").addEventListener("click", ()=>{
+    state.map.autoRotate = !state.map.autoRotate;
+    toast("Auto-rotate", state.map.autoRotate ? "Enabled" : "Disabled");
+  });
+  $("mapInject").addEventListener("click", ()=>mapInjectDemo(true));
+
+  backendState.parentElement.addEventListener("dblclick", ()=>{
+    addLog("info","Attempting backend connect…", {url: state.backend.url});
+    connectBackend();
+  });
+}
+
+function init(){
+  buildModules();
+  selectModule(state.activeModule);
+  renderLog();
+  bgResize(); mapResize();
+  window.addEventListener("resize", bgResize);
+
+  addLog("ok","HUD initialized.", DATA.meta);
+  addLog("info","Tip: double-click the Backend pill to connect WebSocket backend.", {url: state.backend.url});
+  addLog("info","Select a module → tool → fill args → Run.", null);
+  setStatus("READY");
+
+  wireUI();
+
+  requestAnimationFrame(bgStep);
+  requestAnimationFrame(mapRender);
+
+  setInterval(()=>{ tickMetrics({module: state.activeModule}); }, 500);
+}
+
+init();
+</script>
+</body>
+</html>

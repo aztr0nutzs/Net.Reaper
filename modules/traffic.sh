@@ -69,8 +69,8 @@ run_tcpdump() {
     echo -e "    ${C_SHADOW}Output: $outfile${C_RESET}"
     echo ""
 
-    log_command_preview "tcpdump -i ${iface} -w ${outfile}"
-    tcpdump -i "$iface" -w "$outfile"
+    log_command_preview "timeout 600 tcpdump -i ${iface} -w ${outfile}"
+    timeout 600 tcpdump -i "$iface" -w "$outfile" || log_warning "tcpdump timed out after 600 seconds"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Capture saved: $outfile"
@@ -809,32 +809,74 @@ traffic_menu() {
         echo -e "    ${C_SKULL}╰──────────────────────────────────────────────────────────────────╯${C_RESET}"
         echo ""
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_CYAN}PACKET CAPTURE${C_RESET}                                                ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[1]${C_RESET} tcpdump                  ${C_SHADOW}CLI packet capture${C_RESET}              ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[2]${C_RESET} tcpdump (filtered)       ${C_SHADOW}Capture with BPF filter${C_RESET}         ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[3]${C_RESET} tcpdump (live)           ${C_SHADOW}Live verbose output${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[4]${C_RESET} Wireshark                ${C_SHADOW}GUI packet analyzer${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[5]${C_RESET} tshark                   ${C_SHADOW}CLI packet analyzer${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[6]${C_RESET} tshark (filtered)        ${C_SHADOW}Display filter capture${C_RESET}          ${C_SKULL}│${C_RESET}"
+        if check_tool "tcpdump"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[1]${C_RESET} tcpdump                  ${C_SHADOW}CLI packet capture${C_RESET}              ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[2]${C_RESET} tcpdump (filtered)       ${C_SHADOW}Capture with BPF filter${C_RESET}         ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[3]${C_RESET} tcpdump (live)           ${C_SHADOW}Live verbose output${C_RESET}             ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[1-3]${C_RESET} tcpdump                  ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "wireshark"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[4]${C_RESET} Wireshark                ${C_SHADOW}GUI packet analyzer${C_RESET}             ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[4]${C_RESET} Wireshark                ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "tshark"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[5]${C_RESET} tshark                   ${C_SHADOW}CLI packet analyzer${C_RESET}             ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[6]${C_RESET} tshark (filtered)        ${C_SHADOW}Display filter capture${C_RESET}          ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[5-6]${C_RESET} tshark                   ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
         echo ""
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_CYAN}ANALYSIS${C_RESET}                                                      ${C_SKULL}│${C_RESET}"
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[7]${C_RESET} Analyze PCAP             ${C_SHADOW}Basic pcap analysis${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[8]${C_RESET} tshark Analysis          ${C_SHADOW}Protocol statistics${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[9]${C_RESET} Extract HTTP Objects     ${C_SHADOW}Export files from capture${C_RESET}       ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[10]${C_RESET} Extract Credentials     ${C_SHADOW}Find creds in capture${C_RESET}           ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[11]${C_RESET} Open in Wireshark       ${C_SHADOW}View capture file${C_RESET}               ${C_SKULL}│${C_RESET}"
+        if check_tool "tshark"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[8]${C_RESET} tshark Analysis          ${C_SHADOW}Protocol statistics${C_RESET}             ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[9]${C_RESET} Extract HTTP Objects     ${C_SHADOW}Export files from capture${C_RESET}       ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[10]${C_RESET} Extract Credentials     ${C_SHADOW}Find creds in capture${C_RESET}           ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[8-10]${C_RESET} tshark analysis         ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "wireshark"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[11]${C_RESET} Open in Wireshark       ${C_SHADOW}View capture file${C_RESET}               ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[11]${C_RESET} Open in Wireshark       ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
         echo ""
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_CYAN}MITM ATTACKS${C_RESET}                                                  ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[12]${C_RESET} Ettercap                ${C_SHADOW}ARP poisoning/sniffing${C_RESET}          ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[13]${C_RESET} Bettercap               ${C_SHADOW}Advanced MITM framework${C_RESET}         ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[14]${C_RESET} ARP Spoof               ${C_SHADOW}Simple ARP spoofing${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[15]${C_RESET} Responder               ${C_SHADOW}LLMNR/NBT-NS poisoning${C_RESET}          ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[16]${C_RESET} mitmproxy               ${C_SHADOW}HTTP/HTTPS interception${C_RESET}         ${C_SKULL}│${C_RESET}"
+        if check_tool "ettercap"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[12]${C_RESET} Ettercap                ${C_SHADOW}ARP poisoning/sniffing${C_RESET}          ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[12]${C_RESET} Ettercap                ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "bettercap"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[13]${C_RESET} Bettercap               ${C_SHADOW}Advanced MITM framework${C_RESET}         ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[13]${C_RESET} Bettercap               ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "arpspoof"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[14]${C_RESET} ARP Spoof               ${C_SHADOW}Simple ARP spoofing${C_RESET}             ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[14]${C_RESET} ARP Spoof               ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "responder"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[15]${C_RESET} Responder               ${C_SHADOW}LLMNR/NBT-NS poisoning${C_RESET}          ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[15]${C_RESET} Responder               ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "mitmproxy"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[16]${C_RESET} mitmproxy               ${C_SHADOW}HTTP/HTTPS interception${C_RESET}         ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[16]${C_RESET} mitmproxy               ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
         echo ""
         echo -e "    ${C_GHOST}[0]${C_RESET} Back"
         echo ""
 
         local choice
         get_target_input "Select option: " choice
+
+        log_audit "TRAFFIC" "menu_selection" "$choice"
 
         case "$choice" in
             1) run_tcpdump ;;

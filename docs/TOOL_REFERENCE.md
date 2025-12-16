@@ -78,3 +78,21 @@ Notes:
 - Outputs are stored under `~/.netreaper/output/` per session; loot under `~/.netreaper/loot/`.
 - Many actions provide previews/logs before execution; review them in `~/.netreaper/logs/` if something fails.
 - Keep tools fresh with `sudo netreaper-install all` after pulling new versions of NETREAPER.
+
+
+## Holographic WiFi Map
+
+NETREAPER includes a lightweight, local-only holographic WiFi discovery map UI (no external JS dependencies).
+
+**Workflow**
+1. Generate scan JSON:
+   - `netreaper wifi scan <iface>`
+2. Launch the map server:
+   - `netreaper wifi map 8787`
+3. Open:
+   - `http://127.0.0.1:8787/`
+
+The UI reads scan results from:
+- `~/.netreaper/output/wifi_scan_latest.json`
+
+**Reminder:** Use only on networks you own or have explicit authorization to assess.

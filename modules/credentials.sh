@@ -141,14 +141,28 @@ run_hashcat_gpu() {
     operation_header "Hashcat GPU" "$hashfile"
     local start_ms=$(date +%s)
 
+    # Check cache (24 hours)
+    local cache_dir="${HOME}/.netreaper/cache/credentials"
+    mkdir -p "$cache_dir" 2>/dev/null || true
+    local cache_key
+    cache_key=$(md5sum <<< "$hashfile$wordlist" | cut -d' ' -f1)
+    local cache_file="${cache_dir}/cracked_${cache_key}.txt"
+    if [[ -f "$cache_file" && $(find "$cache_file" -mmin -1440 2>/dev/null) ]]; then
+        log_info "Using cached cracks for $hashfile"
+        cat "$cache_file"
+        local duration=$(elapsed_time "$start_ms")
+        operation_summary "success" "Hashcat GPU (cached)" "Duration: $duration"
+        return 0
+    fi
+
     log_audit "CREDENTIAL_ATTACK" "hashcat_gpu" "$hashfile"
     log_attack "Hashcat GPU attack on $hashfile"
 
     local potfile="${LOG_DIR:-/tmp}/hashcat.pot"
     local logfile="${LOG_DIR:-/tmp}/hashcat.log"
 
-    log_command_preview "hashcat -m 22000 -a 0 \"${hashfile}\" \"${wordlist}\" --status --status-timer=15 --potfile-path \"${potfile}\" --session netreaper"
-    hashcat -m 22000 -a 0 "$hashfile" "$wordlist" \
+    log_command_preview "timeout 3600 hashcat -m 22000 -a 0 \"${hashfile}\" \"${wordlist}\" --status --status-timer=15 --potfile-path \"${potfile}\" --session netreaper"
+    timeout 3600 hashcat -m 22000 -a 0 "$hashfile" "$wordlist" \
         --status --status-timer=15 \
         --potfile-path "$potfile" \
         --session netreaper 2>&1 | tee -a "$logfile"
@@ -156,7 +170,7 @@ run_hashcat_gpu() {
     # Show cracked passwords
     echo ""
     log_info "Checking for cracked passwords..."
-    hashcat --show -m 22000 "$hashfile" --potfile-path "$potfile" 2>&1 | tee -a "$logfile"
+    hashcat --show -m 22000 "$hashfile" --potfile-path "$potfile" 2>&1 | tee -a "$logfile" | tee "$cache_file"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Results: $logfile"
@@ -321,8 +335,8 @@ run_john() {
 
     local logfile="${LOG_DIR:-/tmp}/john.log"
 
-    log_command_preview "john --wordlist=\"${wordlist}\" \"${hashfile}\""
-    john --wordlist="$wordlist" "$hashfile" 2>&1 | tee -a "$logfile"
+    log_command_preview "timeout 3600 john --wordlist=\"${wordlist}\" \"${hashfile}\""
+    timeout 3600 john --wordlist="$wordlist" "$hashfile" 2>&1 | tee -a "$logfile" || log_warning "John timed out after 3600 seconds"
 
     # Show cracked passwords
     echo ""
@@ -479,8 +493,8 @@ run_hydra() {
 
     local outfile="${OUTPUT_DIR:-/tmp}/hydra_$(timestamp_filename).txt"
 
-    log_command_preview "hydra ${args[*]} -o \"${outfile}\""
-    hydra "${args[@]}" -o "$outfile" 2>&1 | tee -a "${LOG_DIR:-/tmp}/hydra.log"
+    log_command_preview "timeout 1800 hydra ${args[*]} -o \"${outfile}\""
+    timeout 1800 hydra "${args[@]}" -o "$outfile" 2>&1 | tee -a "${LOG_DIR:-/tmp}/hydra.log" || log_warning "Hydra timed out after 1800 seconds"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Results saved: $outfile"
@@ -599,8 +613,8 @@ run_medusa() {
     log_audit "CREDENTIAL_ATTACK" "medusa" "$target ($module)"
     log_attack "Medusa attack on $target ($module)"
 
-    log_command_preview "medusa ${args[*]}"
-    medusa "${args[@]}" 2>&1 | tee -a "${LOG_DIR:-/tmp}/medusa.log"
+    log_command_preview "timeout 1800 medusa ${args[*]}"
+    timeout 1800 medusa "${args[@]}" 2>&1 | tee -a "${LOG_DIR:-/tmp}/medusa.log" || log_warning "Medusa timed out after 1800 seconds"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Results: ${LOG_DIR:-/tmp}/medusa.log"
@@ -686,8 +700,8 @@ run_crackmapexec() {
     log_audit "CREDENTIAL_ATTACK" "crackmapexec" "$target ($protocol)"
     log_attack "CrackMapExec on $target ($protocol)"
 
-    log_command_preview "crackmapexec ${args[*]}"
-    crackmapexec "${args[@]}" 2>&1 | tee -a "${LOG_DIR:-/tmp}/cme.log"
+    log_command_preview "timeout 900 crackmapexec ${args[*]}"
+    timeout 900 crackmapexec "${args[@]}" 2>&1 | tee -a "${LOG_DIR:-/tmp}/cme.log" || log_warning "CrackMapExec timed out after 900 seconds"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Results: ${LOG_DIR:-/tmp}/cme.log"
@@ -767,8 +781,8 @@ run_ncrack() {
 
     local outfile="${OUTPUT_DIR:-/tmp}/ncrack_$(timestamp_filename).txt"
 
-    log_command_preview "ncrack -v --user ${username} -P ${passlist} ${target}:${service} -oA ${outfile}"
-    ncrack -v --user "$username" -P "$passlist" "${target}:${service}" -oA "$outfile" 2>&1 | tee -a "${LOG_DIR:-/tmp}/ncrack.log"
+    log_command_preview "timeout 1800 ncrack -v --user ${username} -P ${passlist} ${target}:${service} -oA ${outfile}"
+    timeout 1800 ncrack -v --user "$username" -P "$passlist" "${target}:${service}" -oA "$outfile" 2>&1 | tee -a "${LOG_DIR:-/tmp}/ncrack.log" || log_warning "Ncrack timed out after 1800 seconds"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Results saved: $outfile"
@@ -810,8 +824,8 @@ run_secretsdump() {
         cmd="secretsdump.py"
     fi
 
-    log_command_preview "${cmd} ${domain}/${username}:${password}@${target}"
-    $cmd "${domain}/${username}:${password}@${target}" 2>&1 | tee "$outfile"
+    log_command_preview "timeout 600 ${cmd} ${domain}/${username}:${password}@${target}"
+    timeout 600 $cmd "${domain}/${username}:${password}@${target}" 2>&1 | tee "$outfile" || log_warning "Secretsdump timed out after 600 seconds"
 
     local duration=$(elapsed_time "$start_ms")
     log_loot "Results saved: $outfile"
@@ -821,6 +835,14 @@ run_secretsdump() {
 #═══════════════════════════════════════════════════════════════════════════════
 # CREDENTIALS MENU
 #═══════════════════════════════════════════════════════════════════════════════
+
+# Get recent hashes/wordlists
+get_recent_credentials() {
+    local history_file="${HOME}/.netreaper/history/credentials.log"
+    if [[ -f "$history_file" ]]; then
+        tail -5 "$history_file" | awk '{print $3}' | sort | uniq -c | sort -nr | head -3 | awk '{print $2}'
+    fi
+}
 
 # Main credentials menu
 credentials_menu() {
@@ -832,29 +854,69 @@ credentials_menu() {
         echo -e "    ${C_SKULL}╰──────────────────────────────────────────────────────────────────╯${C_RESET}"
         echo ""
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_CYAN}OFFLINE CRACKING${C_RESET}                                              ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[1]${C_RESET} Hashcat (GPU)            ${C_SHADOW}High-speed GPU cracking${C_RESET}         ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[2]${C_RESET} Hashcat (Rules)          ${C_SHADOW}Rule-based attacks${C_RESET}              ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[3]${C_RESET} Hashcat (Custom)         ${C_SHADOW}Custom hash type${C_RESET}                ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[4]${C_RESET} John the Ripper          ${C_SHADOW}CPU-based cracking${C_RESET}              ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[5]${C_RESET} John (WiFi)              ${C_SHADOW}Crack WPA handshakes${C_RESET}            ${C_SKULL}│${C_RESET}"
+        if check_tool "hashcat"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[1]${C_RESET} Hashcat (GPU)            ${C_SHADOW}High-speed GPU cracking${C_RESET}         ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[2]${C_RESET} Hashcat (Rules)          ${C_SHADOW}Rule-based attacks${C_RESET}              ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[3]${C_RESET} Hashcat (Custom)         ${C_SHADOW}Custom hash type${C_RESET}                ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[1-3]${C_RESET} Hashcat                  ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "john"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[4]${C_RESET} John the Ripper          ${C_SHADOW}CPU-based cracking${C_RESET}              ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[5]${C_RESET} John (WiFi)              ${C_SHADOW}Crack WPA handshakes${C_RESET}            ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[4-5]${C_RESET} John                     ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[6]${C_RESET} Convert to Hashcat       ${C_SHADOW}cap → hc22000${C_RESET}                   ${C_SKULL}│${C_RESET}"
         echo ""
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_CYAN}ONLINE ATTACKS${C_RESET}                                                ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[7]${C_RESET} Hydra                    ${C_SHADOW}Network login brute force${C_RESET}       ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[8]${C_RESET} Hydra (SSH)              ${C_SHADOW}Quick SSH attack${C_RESET}                ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[9]${C_RESET} Medusa                   ${C_SHADOW}Parallel login attacks${C_RESET}          ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[10]${C_RESET} Ncrack                  ${C_SHADOW}High-speed auth cracking${C_RESET}        ${C_SKULL}│${C_RESET}"
+        if check_tool "hydra"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[7]${C_RESET} Hydra                    ${C_SHADOW}Network login brute force${C_RESET}       ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[8]${C_RESET} Hydra (SSH)              ${C_SHADOW}Quick SSH attack${C_RESET}                ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[7-8]${C_RESET} Hydra                    ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "medusa"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[9]${C_RESET} Medusa                   ${C_SHADOW}Parallel login attacks${C_RESET}          ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[9]${C_RESET} Medusa                   ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "ncrack"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[10]${C_RESET} Ncrack                  ${C_SHADOW}High-speed auth cracking${C_RESET}        ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[10]${C_RESET} Ncrack                  ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
         echo ""
         echo -e "    ${C_SKULL}│${C_RESET}  ${C_CYAN}ACTIVE DIRECTORY${C_RESET}                                              ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[11]${C_RESET} CrackMapExec            ${C_SHADOW}AD/SMB spray & enum${C_RESET}             ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[12]${C_RESET} CME Enumeration         ${C_SHADOW}SMB enumeration only${C_RESET}            ${C_SKULL}│${C_RESET}"
-        echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[13]${C_RESET} Secretsdump             ${C_SHADOW}Extract domain hashes${C_RESET}           ${C_SKULL}│${C_RESET}"
+        if check_tool "crackmapexec"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[11]${C_RESET} CrackMapExec            ${C_SHADOW}AD/SMB spray & enum${C_RESET}             ${C_SKULL}│${C_RESET}"
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[12]${C_RESET} CME Enumeration         ${C_SHADOW}SMB enumeration only${C_RESET}            ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[11-12]${C_RESET} CrackMapExec            ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
+        if check_tool "impacket-secretsdump" || check_tool "secretsdump.py"; then
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_GHOST}[13]${C_RESET} Secretsdump             ${C_SHADOW}Extract domain hashes${C_RESET}           ${C_SKULL}│${C_RESET}"
+        else
+            echo -e "    ${C_SKULL}│${C_RESET}  ${C_RED}[13]${C_RESET} Secretsdump             ${C_SHADOW}unavailable${C_RESET}                      ${C_SKULL}│${C_RESET}"
+        fi
         echo ""
+        # Show recent targets
+        local recent
+        recent=$(get_recent_credentials)
+        if [[ -n "$recent" ]]; then
+            echo -e "    ${C_SHADOW}Recent hashes/wordlists:${C_RESET}"
+            echo "$recent" | while read -r item; do
+                echo -e "    ${C_GHOST}• $item${C_RESET}"
+            done
+            echo ""
+        fi
         echo -e "    ${C_GHOST}[0]${C_RESET} Back"
         echo ""
 
         local choice
         get_target_input "Select option: " choice
+
+        log_audit "CREDENTIALS" "menu_selection" "$choice"
 
         case "$choice" in
             1) run_hashcat_gpu ;;
