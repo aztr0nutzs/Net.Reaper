@@ -23,9 +23,6 @@
 </p>
 
 ---
-
-> **"Some tools scan. Some tools attack. I do both."**
-
 NETREAPER is a modular Bash-based offensive security toolkit that unifies 70+ security tools behind a single CLI. Built for penetration testers, red teamers, and security researchers who need a fast, scriptable interface with proper safety guardrails.
 
 ---
@@ -684,18 +681,4 @@ NETREAPER began as a personal toolkit for streamlining penetration testing workf
 The project follows a "batteries included" philosophy: one CLI to rule all your security tools, with safety guardrails that don't get in your way.
 
 ---
-
-## Support
-
-- **Issues:** https://github.com/Nerds489/NETREAPER/issues
-- **Discussions:** https://github.com/Nerds489/NETREAPER/discussions
-- **Documentation:** See `docs/` directory for HOWTO, QUICKREF, and TROUBLESHOOTING guides
-
----
-
-<p align="center">
-  <strong>NETREAPER</strong> — "Some tools scan. Some tools attack. I do both."
-</p>
-<p align="center">
-  © 2025 Nerds489
 </p>
