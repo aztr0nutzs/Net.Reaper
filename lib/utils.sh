@@ -903,7 +903,61 @@ require_wordlist() {
     echo "$path"
     return 0
 }
+# save_checkpoint() - Save wizard progress for resume capability
+# Args: $1 = wizard name, $2 = current step, $3 = target, $4 = additional state
+save_checkpoint() {
+    local wizard="$1" step="$2" target="$3" state="$4"
+    local checkpoint_dir="$CONFIG_DIR/checkpoints"
+    local checkpoint_file="$checkpoint_dir/${wizard}_${target//[^a-zA-Z0-9]/_}.json"
 
+    mkdir -p "$checkpoint_dir" 2>/dev/null
+    local data="{"wizard":"$wizard","step":"$step","target":"$target","state":"$state","timestamp":"$(timestamp)"}"
+    echo "$data" > "$checkpoint_file"
+}
+
+# load_checkpoint() - Load saved checkpoint
+# Args: $1 = wizard name, $2 = target
+# Returns: checkpoint data as JSON string, empty if none
+load_checkpoint() {
+    local wizard="$1" target="$2"
+    local checkpoint_file="$CONFIG_DIR/checkpoints/${wizard}_${target//[^a-zA-Z0-9]/_}.json"
+    if [[ -f "$checkpoint_file" ]]; then
+        cat "$checkpoint_file"
+    fi
+}
+# check_resources() - Monitor system resources and suggest lite mode if needed
+# Returns: 0 if resources OK, 1 if high usage detected
+check_resources() {
+    local cpu_threshold="${1:-80}"
+    local ram_threshold="${2:-80}"
+    local high_usage=false
+
+    # Check CPU usage
+    local cpu_usage
+export -f save_checkpoint load_checkpoint
+    cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *([0-9.]*)%* id.*/1/" | awk "{print 100 - $1}")
+    if [[ $(echo "$cpu_usage > $cpu_threshold" | bc -l 2>/dev/null) -eq 1 ]]; then
+        log_warning "High CPU usage detected: ${cpu_usage}% (threshold: ${cpu_threshold}%)"
+        high_usage=true
+    fi
+
+    # Check RAM usage
+    local ram_usage
+    ram_usage=$(free | grep Mem | awk "{printf "%.0f", $3/$2 * 100.0}")
+    if [[ $ram_usage -gt $ram_threshold ]]; then
+        log_warning "High RAM usage detected: ${ram_usage}% (threshold: ${ram_threshold}%)"
+        high_usage=true
+    fi
+
+    if [[ "$high_usage" == true ]]; then
+        log_info "Consider enabling lite mode for better performance: netreaper --lite or config set lite_mode true"
+        return 1
+    fi
+
+    return 0
+}
+
+export -f check_resources
 #═══════════════════════════════════════════════════════════════════════════════
 # EXPORT FUNCTIONS
 #═══════════════════════════════════════════════════════════════════════════════
