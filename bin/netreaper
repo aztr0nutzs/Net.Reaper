@@ -105,6 +105,15 @@ _apply_config() {
             export NR_WARN_PUBLIC_IP=0
         fi
     fi
+    # Apply lite_mode from config
+    cfg_value=$(config_get lite_mode 2>/dev/null) || cfg_value=""
+    if [[ -n "$cfg_value" ]]; then
+        if config_is_true "$cfg_value"; then
+            export NR_LITE_MODE=1
+        else
+            export NR_LITE_MODE=0
+        fi
+    fi
 }
 _apply_config
 
@@ -128,6 +137,13 @@ Usage: netreaper [command] [options]
 Options:
   -h, --help      Show this help message
   -V, --version   Show version information
+  queue             Pipeline and task queue management
+    queue add <file>     Add job to queue
+    queue list           List queued jobs
+    queue run            Execute queued jobs
+    queue pause <id>     Pause a running job
+    queue resume <id>    Resume a paused job
+    queue cancel <id>    Cancel a job
   --dry-run       Preview commands without executing
 
 Commands:
@@ -137,6 +153,10 @@ Commands:
   stress          Stress testing (hping3, netem)
     stress hping <target>    Run hping3 packet flood
     stress netem <iface>     Apply network impairment
+  wizard          Guided penetration testing wizards
+    wizard web <target>      Web application reconnaissance
+    wizard creds <target>    Credential hunting
+    wizard wifi <iface>      Wireless takeover
   config          Configuration management
     config show              Show all configuration
     config get <key>         Get a configuration value
@@ -197,6 +217,16 @@ main() {
             exit 0
             ;;
         -h|--help)
+        --lite)
+            NR_LITE_MODE=1
+            export NR_LITE_MODE
+            log_info "Lite mode enabled"
+            shift
+            if [[ -n "${1:-}" ]]; then
+                main "$@"
+            fi
+            exit 0
+            ;;
             _show_help
             exit 0
             ;;
@@ -432,6 +462,10 @@ WIFI_HELP
                     fi
                     run_hping_attack "$3" "${4:-80}" "${5:-syn}" "${6:-30}" "${7:-1000}"
                     exit $?
+        queue)
+            shift
+            exec "$NETREAPER_ROOT/bin/nrpipeline" "$@"
+            ;;
                     ;;
                 netem)
                     # netreaper stress netem <iface> [impairment] [value] [duration]
@@ -451,6 +485,43 @@ WIFI_HELP
                 *)
                     log_error "Unknown stress subcommand: ${2:-}"
                     echo "Usage: netreaper stress [hping|netem]"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        wizard)
+            case "${2:-}" in
+                web)
+                    run_web_wizard "${3:-}"
+                    exit $?
+                    ;;
+                creds)
+                    run_creds_wizard "${3:-}"
+                    exit $?
+                    ;;
+                wifi)
+                    run_wifi_takeover_wizard "${3:-}"
+                    exit $?
+                    ;;
+                "")
+                    echo "NETREAPER Wizard Commands"
+                    echo ""
+                    echo "Usage: netreaper wizard <command> [options]"
+                    echo ""
+                    echo "Wizards:"
+                    echo "  web [target]     Web application reconnaissance wizard"
+                    echo "  creds [target]   Credential hunting wizard"
+                    echo "  wifi [iface]     Wireless takeover wizard"
+                    echo ""
+                    echo "Examples:"
+                    echo "  netreaper wizard web example.com"
+                    echo "  netreaper wizard creds 192.168.1.1"
+                    echo "  netreaper wizard wifi wlan0"
+                    exit 0
+                    ;;
+                *)
+                    log_error "Unknown wizard: ${2:-}"
+                    echo "Usage: netreaper wizard [web|creds|wifi]"
                     exit 1
                     ;;
             esac
