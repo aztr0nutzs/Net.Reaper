@@ -1,0 +1,4170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <title>NETREAPER v.25 — BIOTECH Containment Interface</title>
+
+  <!-- Fonts (online). If offline, it falls back to system fonts. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#010105;
+      --ink:#b6ffd1;
+      --green:#00ff00;
+      --greenDim: rgba(0,255,0,.55);
+      --greenSoft: rgba(0,255,0,.15);
+      --cyan:#0099AA;
+      --cyanDim: rgba(0,153,170,.35);
+      --orange:#ff6600;
+      --orangeDim: rgba(255,102,0,.35);
+      --steel: rgba(180,210,220,.18);
+      --panel: rgba(2, 6, 10, .72);
+      --panel2: rgba(0, 10, 16, .52);
+      --glass: rgba(5, 25, 30, .22);
+      --shadow: 0 22px 60px rgba(0,0,0,.65);
+      --shadow2: 0 10px 30px rgba(0,0,0,.55);
+      --line: rgba(0,153,170,.55);
+      --line2: rgba(0,255,0,.32);
+      --warn: rgba(255,102,0,.9);
+      --radius: 18px;
+      --radius2: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --ui: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      --label: "Orbitron", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      --bloom: 0 0 10px rgba(0,255,0,.25), 0 0 26px rgba(0,255,0,.14);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 700px at 70% 10%, rgba(0,255,0,.04), transparent 60%),
+                  radial-gradient(900px 500px at 15% 30%, rgba(0,153,170,.06), transparent 55%),
+                  radial-gradient(900px 500px at 80% 80%, rgba(255,102,0,.04), transparent 55%),
+                  var(--bg);
+      color:var(--ink);
+      font-family:var(--ui);
+      overflow:hidden;
+    }
+
+    /* Substrate layers */
+    #substrate{
+      position:fixed; inset:0;
+      pointer-events:none;
+      z-index:0;
+    }
+    #substrate canvas{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      opacity:.85;
+      filter: saturate(110%) contrast(105%);
+    }
+    #substrate .vignette{
+      position:absolute; inset:-2px;
+      background:
+        radial-gradient(1200px 800px at 50% 35%, transparent 35%, rgba(0,0,0,.55) 75%),
+        radial-gradient(900px 600px at 15% 80%, rgba(0,0,0,.35), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.55), transparent 30%, transparent 70%, rgba(0,0,0,.7));
+      mix-blend-mode:multiply;
+    }
+    #substrate .scanlines{
+      position:absolute; inset:0;
+      background: repeating-linear-gradient(180deg, rgba(0,0,0,.0) 0px, rgba(0,0,0,.0) 2px, rgba(0,0,0,.12) 3px);
+      opacity:.24;
+      mix-blend-mode:overlay;
+    }
+    #substrate .noise{
+      position:absolute; inset:0;
+      background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="160" height="160" filter="url(%23n)" opacity="0.22"/></svg>');
+      opacity:.08;
+      mix-blend-mode:screen;
+      filter: contrast(110%);
+      animation: noiseShift 6s linear infinite;
+    }
+    @keyframes noiseShift { 0%{transform:translate(0,0)} 100%{transform:translate(60px,-40px)} }
+
+    /* Top bar */
+    .topbar{
+      position:relative;
+      z-index:5;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding:14px 16px 10px 16px;
+    }
+    .brand{
+      display:flex; align-items:baseline; gap:12px;
+      min-width:260px;
+    }
+    .brand .title{
+      font-family:var(--label);
+      font-weight:700;
+      letter-spacing:.09em;
+      text-transform:uppercase;
+      font-size:15px;
+      color:rgba(210,255,230,.92);
+      text-shadow: var(--bloom);
+    }
+    .brand .sub{
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(0,255,0,.65);
+      opacity:.95;
+    }
+    .statusline{
+      flex:1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      padding:10px 12px;
+      background: linear-gradient(180deg, rgba(0,153,170,.15), rgba(0,153,170,.06));
+      border:1px solid rgba(0,153,170,.35);
+      border-radius: 999px;
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(10px);
+      min-width: 420px;
+      max-width: 900px;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(0,255,0,.18);
+      background: rgba(0,255,0,.06);
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(210,255,230,.9);
+    }
+    .pill b{
+      font-family:var(--label);
+      letter-spacing:.06em;
+      font-size:11px;
+      color:rgba(0,255,0,.82);
+      font-weight:700;
+    }
+    .led{
+      width:10px; height:10px;
+      border-radius: 999px;
+      background: rgba(0,255,0,.22);
+      box-shadow: 0 0 8px rgba(0,255,0,.25);
+      border:1px solid rgba(0,255,0,.35);
+      position:relative;
+    }
+    .led.on{
+      background: rgba(0,255,0,.95);
+      box-shadow: 0 0 10px rgba(0,255,0,.55), 0 0 26px rgba(0,255,0,.22);
+    }
+    .led.warn{
+      background: rgba(255,102,0,.85);
+      box-shadow: 0 0 10px rgba(255,102,0,.45), 0 0 22px rgba(255,102,0,.2);
+      border-color: rgba(255,102,0,.65);
+    }
+
+    .controlsRight{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:10px;
+      min-width:260px;
+    }
+
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      user-select:none;
+      background: linear-gradient(180deg, rgba(0,255,0,.12), rgba(0,255,0,.05));
+      border:1px solid rgba(0,255,0,.28);
+      color:rgba(220,255,235,.92);
+      border-radius: 12px;
+      padding:10px 12px;
+      font-family:var(--label);
+      text-transform:uppercase;
+      letter-spacing:.09em;
+      font-size:11px;
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(10px);
+      position:relative;
+      overflow:hidden;
+    }
+    .btn:before{
+      content:"";
+      position:absolute; inset:-40px -40px auto auto;
+      width:120px; height:120px;
+      background: radial-gradient(circle at 30% 30%, rgba(0,255,0,.22), transparent 60%);
+      transform: rotate(18deg);
+      opacity:.8;
+    }
+    .btn:hover{ transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0px); }
+    .btn.secondary{
+      background: linear-gradient(180deg, rgba(0,153,170,.18), rgba(0,153,170,.06));
+      border-color: rgba(0,153,170,.42);
+      color:rgba(215,250,255,.9);
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,102,0,.22), rgba(255,102,0,.08));
+      border-color: rgba(255,102,0,.55);
+      color:rgba(255,200,170,.95);
+    }
+    .btn.ghost{
+      background: rgba(255,255,255,.03);
+      border-color: rgba(180,210,220,.18);
+      color:rgba(210,240,245,.85);
+    }
+
+    /* Main layout */
+    .grid{
+      position:relative;
+      z-index:4;
+      height: calc(100% - 64px);
+      display:grid;
+      grid-template-columns: 1.05fr 1.65fr 1.05fr;
+      grid-template-rows: 1fr 1fr;
+      gap:14px;
+      padding: 10px 14px 14px 14px;
+    }
+
+    /* Central operating table spans both rows */
+    .central{
+      grid-column:2;
+      grid-row:1 / span 2;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(0,153,170,.12), rgba(0,0,0,.22));
+      border:1px solid rgba(0,153,170,.35);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .central:after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(900px 500px at 50% -10%, rgba(0,255,0,.12), transparent 55%),
+        radial-gradient(500px 400px at 10% 10%, rgba(0,153,170,.15), transparent 60%),
+        radial-gradient(500px 400px at 90% 90%, rgba(255,102,0,.08), transparent 60%);
+      opacity:.65;
+      pointer-events:none;
+      mix-blend-mode:screen;
+    }
+
+    .centralHeader{
+      position:relative;
+      z-index:2;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 14px 16px 10px 16px;
+      border-bottom: 1px solid rgba(0,153,170,.25);
+      background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.05));
+    }
+    .centralHeader .h{
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .centralHeader .h .line1{
+      font-family:var(--label);
+      letter-spacing:.10em;
+      text-transform:uppercase;
+      font-size:12px;
+      color:rgba(210,255,230,.88);
+    }
+    .centralHeader .h .line1 span{
+      color:rgba(0,255,0,.78);
+      text-shadow: var(--bloom);
+    }
+    .centralHeader .h .line2{
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(210,240,245,.78);
+    }
+    .centralHeader .h .line2 b{
+      color:rgba(255,102,0,.9);
+      font-weight:700;
+    }
+    .targetBox{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(0,255,0,.22);
+      background: rgba(0,255,0,.06);
+      box-shadow: 0 0 0 1px rgba(0,153,170,.12) inset;
+    }
+    .targetBox label{
+      font-family:var(--label);
+      font-size:10px;
+      letter-spacing:.11em;
+      text-transform:uppercase;
+      color:rgba(0,255,0,.75);
+    }
+    .targetBox input{
+      width: 190px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border:1px solid rgba(0,153,170,.35);
+      background: rgba(0,0,0,.35);
+      color: rgba(220,255,235,.92);
+      font-family:var(--mono);
+      outline:none;
+    }
+    .targetBox input:focus{
+      border-color: rgba(0,255,0,.35);
+      box-shadow: 0 0 0 3px rgba(0,255,0,.12);
+    }
+    .smallIconBtn{
+      width:40px; height:40px;
+      border-radius: 12px;
+      border:1px solid rgba(0,153,170,.35);
+      background: rgba(0,153,170,.10);
+      color:rgba(210,240,245,.88);
+      cursor:pointer;
+      display:grid; place-items:center;
+      box-shadow: var(--shadow2);
+    }
+    .smallIconBtn:hover{ transform: translateY(-1px); }
+    .smallIconBtn:active{ transform: translateY(0px); }
+
+    /* Central split: metrics + terminal + map */
+    .centralBody{
+      position:relative;
+      z-index:2;
+      height: calc(100% - 78px);
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      grid-template-rows: 270px 1fr;
+      gap:12px;
+      padding: 12px;
+    }
+
+    .metrics{
+      grid-column:1;
+      grid-row:1;
+      border-radius: var(--radius2);
+      background: rgba(0,0,0,.26);
+      border:1px solid rgba(0,153,170,.30);
+      box-shadow: 0 0 0 1px rgba(0,255,0,.05) inset;
+      overflow:hidden;
+      position:relative;
+    }
+    .metricsHeader{
+      padding: 12px 12px 8px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom: 1px solid rgba(0,153,170,.22);
+      background: linear-gradient(180deg, rgba(0,153,170,.10), rgba(0,0,0,.12));
+    }
+    .metricsHeader .t{
+      font-family:var(--label);
+      font-size:11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:rgba(210,255,230,.82);
+    }
+    .metricsHeader .sub{
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(210,240,245,.68);
+    }
+    .metricsGrid{
+      padding: 10px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    .gaugeCard{
+      border-radius: 14px;
+      border:1px solid rgba(0,153,170,.22);
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.35));
+      padding:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    .gaugeCard .label{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      margin-bottom:6px;
+    }
+    .gaugeCard .label .name{
+      font-family:var(--label);
+      font-size:10px;
+      letter-spacing:.11em;
+      text-transform:uppercase;
+      color:rgba(0,255,0,.78);
+    }
+    .gaugeCard .label .value{
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(220,255,235,.9);
+    }
+    .gaugeCard canvas{
+      width:100%; height:66px;
+      display:block;
+      border-radius: 12px;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(0,255,0,.10);
+      box-shadow: 0 0 0 1px rgba(0,153,170,.10) inset;
+    }
+
+    .terminal{
+      grid-column:1;
+      grid-row:2;
+      border-radius: var(--radius2);
+      background: rgba(0,0,0,.28);
+      border:1px solid rgba(0,153,170,.30);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height: 0;
+    }
+    .terminalHeader{
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom: 1px solid rgba(0,153,170,.22);
+      background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.05));
+    }
+    .terminalHeader .t{
+      font-family:var(--label);
+      font-size:11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:rgba(210,255,230,.82);
+    }
+    .terminalHeader .bar{
+      display:flex; gap:8px; align-items:center;
+    }
+    .terminalHeader .bar .mini{
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(210,240,245,.70);
+      opacity:.95;
+    }
+    .terminalBody{
+      flex:1;
+      min-height:0;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.35;
+      color: rgba(0,255,0,.86);
+      text-shadow: 0 0 10px rgba(0,255,0,.12);
+      overflow:auto;
+      background: radial-gradient(700px 400px at 50% 0%, rgba(0,255,0,.06), transparent 60%);
+    }
+    .terminalBody .line{ white-space:pre; }
+    .terminalBody .muted{ color: rgba(0,255,0,.52); }
+    .terminalBody .warn{ color: rgba(255,102,0,.90); text-shadow: 0 0 12px rgba(255,102,0,.16);}
+    .terminalBody .cyan{ color: rgba(0,153,170,.95); text-shadow:none; }
+    .terminalBody .yellow{ color: rgba(255,235,170,.90); }
+
+    .map{
+      grid-column:2;
+      grid-row:1 / span 2;
+      border-radius: var(--radius2);
+      background: rgba(0,0,0,.26);
+      border:1px solid rgba(0,153,170,.30);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+      position:relative;
+      min-height:0;
+    }
+    .mapHeader{
+      position:absolute; left:0; right:0; top:0;
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom: 1px solid rgba(0,153,170,.22);
+      background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.05));
+      z-index:3;
+    }
+    .mapHeader .t{
+      font-family:var(--label);
+      font-size:11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:rgba(210,255,230,.82);
+    }
+    .mapHeader .hint{
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(210,240,245,.66);
+    }
+    .map canvas{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+    }
+    .mapOverlay{
+      position:absolute; left:12px; bottom:12px;
+      display:flex; gap:10px; flex-wrap:wrap;
+      z-index:4;
+      pointer-events:auto;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(0,255,0,.22);
+      background: rgba(0,255,0,.06);
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(220,255,235,.92);
+      cursor:pointer;
+      user-select:none;
+      box-shadow: 0 10px 26px rgba(0,0,0,.4);
+      backdrop-filter: blur(10px);
+    }
+    .chip:hover{ transform: translateY(-1px); }
+    .chip:active{ transform: translateY(0); }
+    .chip.orange{
+      border-color: rgba(255,102,0,.45);
+      background: rgba(255,102,0,.08);
+      color: rgba(255,220,200,.92);
+    }
+    .chip.cyan{
+      border-color: rgba(0,153,170,.45);
+      background: rgba(0,153,170,.08);
+      color: rgba(215,250,255,.92);
+    }
+
+    /* Holographic windows */
+    .holo{
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(0,153,170,.12), rgba(0,0,0,.24));
+      border:1px solid rgba(0,153,170,.32);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      position:relative;
+      overflow:hidden;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+    }
+    .holo:before{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        linear-gradient(90deg, transparent 0%, rgba(0,255,0,.08) 35%, transparent 70%),
+        radial-gradient(500px 200px at 30% 10%, rgba(0,255,0,.10), transparent 70%),
+        radial-gradient(400px 240px at 90% 90%, rgba(0,153,170,.10), transparent 70%);
+      opacity:.45;
+      transform: translateX(-40%);
+      animation: holoSweep 8s ease-in-out infinite;
+      pointer-events:none;
+      mix-blend-mode:screen;
+    }
+    @keyframes holoSweep{
+      0%{transform: translateX(-55%)}
+      50%{transform: translateX(0%)}
+      100%{transform: translateX(-55%)}
+    }
+
+    .holoHeader{
+      position:relative;
+      z-index:2;
+      padding: 12px 12px 10px 12px;
+      border-bottom: 1px solid rgba(0,153,170,.22);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+      background: linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.05));
+    }
+    .holoHeader .left{
+      display:flex; flex-direction:column; gap:6px;
+      min-width:0;
+    }
+    .holoHeader .name{
+      font-family:var(--label);
+      font-size:11px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(210,255,230,.88);
+      text-shadow: var(--bloom);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .holoHeader .desc{
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(210,240,245,.68);
+      max-width: 95%;
+    }
+    .holoHeader .badge{
+      font-family:var(--label);
+      font-size:10px;
+      letter-spacing:.11em;
+      text-transform:uppercase;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(0,255,0,.22);
+      background: rgba(0,255,0,.06);
+      color:rgba(0,255,0,.85);
+      box-shadow: 0 0 18px rgba(0,255,0,.10);
+      user-select:none;
+      white-space:nowrap;
+    }
+    .holoHeader .badge.orange{
+      border-color: rgba(255,102,0,.45);
+      background: rgba(255,102,0,.08);
+      color: rgba(255,102,0,.95);
+      box-shadow: 0 0 18px rgba(255,102,0,.10);
+    }
+    .holoHeader .badge.cyan{
+      border-color: rgba(0,153,170,.45);
+      background: rgba(0,153,170,.08);
+      color: rgba(0,153,170,.95);
+      box-shadow: 0 0 18px rgba(0,153,170,.10);
+    }
+
+    .holoBody{
+      position:relative;
+      z-index:2;
+      padding: 10px 12px 12px 12px;
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 12px;
+      min-height:0;
+      overflow:hidden;
+    }
+
+    .viz{
+      border-radius: 14px;
+      border:1px solid rgba(0,153,170,.22);
+      background: rgba(0,0,0,.22);
+      overflow:hidden;
+      position:relative;
+      min-height: 180px;
+    }
+    .viz canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+    .panel{
+      border-radius: 14px;
+      border:1px solid rgba(0,153,170,.22);
+      background: rgba(0,0,0,.22);
+      overflow:auto;
+      min-height:0;
+      padding: 10px;
+    }
+    .panel .sectionTitle{
+      font-family:var(--label);
+      font-size:10px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(0,255,0,.78);
+      margin: 2px 0 8px 0;
+    }
+
+    .ctrl{
+      border:1px solid rgba(0,153,170,.18);
+      background: rgba(0,153,170,.06);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom:10px;
+    }
+    .ctrl .row{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .ctrl .row:last-child{ margin-bottom:0; }
+    .ctrl .label{
+      font-family:var(--label);
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-size:10px;
+      color:rgba(210,255,230,.86);
+      display:flex; align-items:center; gap:8px;
+      min-width: 0;
+    }
+    .ctrl .label small{
+      font-family:var(--mono);
+      letter-spacing:0;
+      text-transform:none;
+      font-size:11px;
+      color:rgba(210,240,245,.68);
+      opacity:.95;
+    }
+    .ctrl .hint{
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(210,240,245,.62);
+      line-height:1.25;
+    }
+
+    .toggle{
+      display:inline-flex; align-items:center; gap:10px;
+      user-select:none;
+    }
+    .switch{
+      width: 54px; height: 30px;
+      border-radius: 999px;
+      border:1px solid rgba(0,255,0,.22);
+      background: rgba(0,255,0,.06);
+      position:relative;
+      cursor:pointer;
+      box-shadow: 0 0 0 1px rgba(0,153,170,.10) inset;
+    }
+    .switch .knob{
+      width: 24px; height: 24px;
+      border-radius: 999px;
+      position:absolute; top:2px; left:2px;
+      background: rgba(180,210,220,.35);
+      border:1px solid rgba(180,210,220,.25);
+      box-shadow: 0 0 12px rgba(0,0,0,.45);
+      transition: transform .22s ease, background .22s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+    .switch.on{
+      border-color: rgba(0,255,0,.45);
+      background: rgba(0,255,0,.10);
+    }
+    .switch.on .knob{
+      transform: translateX(24px);
+      background: rgba(0,255,0,.72);
+      border-color: rgba(0,255,0,.35);
+      box-shadow: 0 0 16px rgba(0,255,0,.20), 0 0 40px rgba(0,255,0,.12);
+    }
+    .switch.warn{
+      border-color: rgba(255,102,0,.55);
+      background: rgba(255,102,0,.08);
+    }
+    .switch.warn.on .knob{
+      background: rgba(255,102,0,.85);
+      border-color: rgba(255,102,0,.45);
+      box-shadow: 0 0 18px rgba(255,102,0,.20), 0 0 44px rgba(255,102,0,.10);
+    }
+
+    .dialRow{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    select, input[type="text"], input[type="number"], textarea{
+      width:100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border:1px solid rgba(0,153,170,.35);
+      background: rgba(0,0,0,.35);
+      color: rgba(220,255,235,.92);
+      font-family:var(--mono);
+      outline:none;
+    }
+    textarea{ min-height: 120px; resize: vertical; }
+    select:focus, input:focus, textarea:focus{
+      border-color: rgba(0,255,0,.35);
+      box-shadow: 0 0 0 3px rgba(0,255,0,.12);
+    }
+    .range{
+      width:100%;
+    }
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--green);
+    }
+
+    .btnRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top: 8px;
+    }
+
+    .microInset{
+      border-radius: 12px;
+      border:1px solid rgba(0,153,170,.22);
+      background: rgba(0,0,0,.22);
+      overflow:hidden;
+      margin-top:10px;
+    }
+    .microInset .microHead{
+      padding: 8px 10px;
+      border-bottom:1px solid rgba(0,153,170,.18);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background: rgba(0,0,0,.18);
+    }
+    .microInset .microHead .tt{
+      font-family:var(--label);
+      font-size:10px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:rgba(210,255,230,.82);
+    }
+    .microInset .microBody{
+      padding:10px;
+      font-family:var(--mono);
+      font-size:11px;
+      color:rgba(0,255,0,.75);
+      max-height:110px;
+      overflow:auto;
+    }
+
+    /* Positions for 6 windows */
+    #w1{ grid-column:1; grid-row:1; }
+    #w3{ grid-column:1; grid-row:2; }
+    #w2{ grid-column:3; grid-row:1; }
+    #w4{ grid-column:3; grid-row:2; }
+
+    /* Footer / overlay */
+    .toastWrap{
+      position:fixed; left:14px; right:14px; bottom:12px;
+      z-index:9;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      pointer-events:none;
+    }
+    .toast{
+      pointer-events:auto;
+      max-width: 520px;
+      border-radius: 14px;
+      border:1px solid rgba(0,255,0,.22);
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      padding: 10px 12px;
+      display:none;
+      animation: toastIn .25s ease-out both;
+    }
+    .toast.show{ display:block; }
+    @keyframes toastIn{
+      from{ transform: translateY(10px); opacity:0 }
+      to{ transform: translateY(0px); opacity:1 }
+    }
+    .toast .t{
+      font-family:var(--label);
+      font-size:10px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color:rgba(0,255,0,.82);
+      margin-bottom: 6px;
+    }
+    .toast .msg{
+      font-family:var(--mono);
+      font-size:12px;
+      color:rgba(220,255,235,.9);
+      line-height:1.35;
+    }
+    .toast.orange{
+      border-color: rgba(255,102,0,.45);
+    }
+    .toast.orange .t{ color: rgba(255,102,0,.95); }
+
+    /* Modal */
+    .modalBack{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.58);
+      z-index:10;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:14px;
+    }
+    .modalBack.show{ display:flex; }
+    .modal{
+      width:min(980px, 100%);
+      max-height: 92vh;
+      border-radius: 18px;
+      border:1px solid rgba(0,153,170,.45);
+      background: rgba(0,0,0,.68);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .modalHead{
+      padding: 12px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid rgba(0,153,170,.22);
+      background: linear-gradient(180deg, rgba(0,153,170,.12), rgba(0,0,0,.18));
+    }
+    .modalHead .t{
+      font-family:var(--label);
+      font-size:11px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(210,255,230,.88);
+    }
+    .modalBody{
+      padding: 12px;
+      overflow:auto;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+      min-height:0;
+    }
+    .modal .full{
+      grid-column: 1 / -1;
+    }
+    .note{
+      border-radius: 14px;
+      border:1px solid rgba(255,102,0,.35);
+      background: rgba(255,102,0,.06);
+      padding: 10px 12px;
+      color: rgba(255,220,200,.92);
+      font-family:var(--mono);
+      font-size:12px;
+      line-height:1.35;
+    }
+    .kbd{
+      padding: 2px 6px;
+      border-radius: 8px;
+      border:1px solid rgba(180,210,220,.18);
+      background: rgba(255,255,255,.03);
+      font-family: var(--mono);
+      font-size:11px;
+      color: rgba(215,250,255,.85);
+      white-space:nowrap;
+    }
+
+    /* Window 5 & 6 live as modal "holograms" (to keep layout clean) */
+    .legendRow{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-top: 10px;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar{ width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track{ background: rgba(0,0,0,.2); }
+    ::-webkit-scrollbar-thumb{ background: rgba(0,153,170,.25); border:1px solid rgba(0,153,170,.25); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover{ background: rgba(0,153,170,.35); }
+
+    /* Reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      *{ animation:none !important; transition:none !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Substrate (hex lattice + circuit flashes) -->
+  <div id="substrate" aria-hidden="true">
+    <canvas id="hexCanvas"></canvas>
+    <canvas id="circuitCanvas"></canvas>
+    <div class="scanlines"></div>
+    <div class="noise"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="title">NETREAPER <span style="color:rgba(0,255,0,.85)">v.25</span></div>
+      <div class="sub">Containment Facility Interface — BIOTECH</div>
+    </div>
+
+    <div class="statusline" role="status" aria-live="polite">
+      <div class="pill"><span class="led" id="ledIngress"></span><b>INGRESS</b> <span id="ingressText">OFFLINE</span></div>
+      <div class="pill"><span class="led on" id="ledState"></span><b>STATE</b> <span id="stateText">STANDBY</span></div>
+      <div class="pill"><b>TARGET SPECIMEN</b> <span id="targetLabel">—</span></div>
+      <div class="pill"><b>PROFILE</b> <span id="profileLabel">LAB_SAFE</span></div>
+    </div>
+
+    <div class="controlsRight">
+      <button class="btn secondary" id="btnWLAN" title="Open WLAN Vector Manipulation (Window 5)">WLAN LAB</button>
+      <button class="btn secondary" id="btnCore" title="Open System Core & Configuration (Window 6)">SYSTEM CORE</button>
+      <button class="btn ghost" id="btnAudio" title="Toggle ambience audio">AUDIO</button>
+      <button class="btn danger" id="btnPanic" title="Emergency stop (local UI + log purge option)">PANIC</button>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="grid">
+
+    <!-- WINDOW 1: Genome Sequencer -->
+    <section class="holo" id="w1">
+      <div class="holoHeader">
+        <div class="left">
+          <div class="name">HOLOGRAPHIC WINDOW 1 — THE GENOME SEQUENCER</div>
+          <div class="desc">Credentials module visualization: forced unwind of sequences. Progress expressed as <span style="color:rgba(0,255,0,.85)">Mutation Rate</span>.</div>
+        </div>
+        <div class="badge" id="badgeW1">DORMANT</div>
+      </div>
+
+      <div class="holoBody">
+        <div class="viz">
+          <canvas id="vizGenome"></canvas>
+        </div>
+        <div class="panel">
+          <div class="sectionTitle">STRAIN LIBRARY — CONTROL PANEL</div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">High-Performance Decompositor <small>GPU-style breaker</small></div>
+              <div class="toggle">
+                <div class="switch warn" id="swHashcatGPU" role="switch" aria-checked="false" tabindex="0" title="Simulates GPU heat coils and mutation acceleration"></div>
+              </div>
+            </div>
+            <div class="hint">Simulates GPU coil heat + accelerated mutation rate. (No tool execution from browser.)</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Rule-Set Mutation Array <small>selector dial</small></div>
+            </div>
+            <select id="selHashcatRule">
+              <option value="default">Strain: DEFAULT</option>
+              <option value="t1000">Strain: T-1000</option>
+              <option value="f14">Strain: F-14</option>
+            </select>
+            <div class="hint" style="margin-top:8px;">Controls visual "mutation turbulence" and expected effort estimates.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Manual Vector Configuration <small>RAW GENE STRING</small></div>
+            </div>
+            <input id="txtGeneString" type="text" placeholder="e.g. mode/mask/vector (lab note)"/>
+            <div class="btnRow">
+              <button class="btn" id="btnPrimeGene">PRIME VECTOR</button>
+              <button class="btn secondary" id="btnClearGene">PURGE</button>
+            </div>
+            <div class="hint">Stores the string in the session and stamps it into the ingest stream.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">CPU Decryptor <small>PROCESS-BASIC</small></div>
+              <button class="btn" id="btnJohnBasic">PROCESS</button>
+            </div>
+            <div class="hint">Runs a local simulation job and updates Mutation Rate. Safe-mode only.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">WLAN Protocol Dissection <small>channel/interface input</small></div>
+            </div>
+            <div class="dialRow">
+              <input id="txtWlanChan" type="number" min="1" max="165" value="6" />
+              <input id="txtWlanIface" type="text" value="wlan0" />
+            </div>
+            <div class="btnRow">
+              <button class="btn secondary" id="btnJohnWifi">DISSECT</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Format Standardizer <small>RE-SEQUENCE lever</small></div>
+              <button class="btn secondary" id="btnResequence">RE-SEQUENCE</button>
+            </div>
+            <div class="hint">Converts "sample" formats in the UI simulation and logs a normalized output block.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Protocol Credential Injection <small>Injector nozzle</small></div>
+            </div>
+            <div class="dialRow">
+              <select id="selHydraProto">
+                <option value="http">Protocol: HTTP</option>
+                <option value="ftp">Protocol: FTP</option>
+                <option value="rdp">Protocol: RDP</option>
+                <option value="smtp">Protocol: SMTP</option>
+              </select>
+              <input id="numHydraSpeed" type="number" min="1" max="10000" value="120" />
+            </div>
+            <div class="btnRow">
+              <button class="btn danger" id="btnInject">INJECT</button>
+            </div>
+            <div class="hint">Simulated pressure gauge affects "attempt speed" in the UI. No external execution.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Secure Shell Isolation <small>caged button</small></div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button class="btn ghost" id="btnLiftCover">LIFT COVER</button>
+                <button class="btn danger" id="btnSSH" disabled>ARM & FIRE</button>
+              </div>
+            </div>
+            <div class="hint">Requires cover lift. Mimics "safety interlock" behavior.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Parallel Protocol Attack <small>concurrency selector</small></div>
+            </div>
+            <input id="rngMedusa" type="range" min="1" max="8" step="1" value="2">
+            <div class="row" style="margin-top:8px;">
+              <div class="hint">Concurrent protocols: <span id="medusaVal" class="cyan" style="font-family:var(--mono);">2x</span></div>
+              <button class="btn secondary" id="btnMedusa">APPLY</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Domain Hash Harvest <small>Secretsdump siphon</small></div>
+              <button class="btn" id="btnSiphon">SIPHON</button>
+            </div>
+            <div class="hint">Generates a simulated "drain" animation + sample extraction results to the console stream.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WINDOW 3: Organ Mapping Array -->
+    <section class="holo" id="w3">
+      <div class="holoHeader">
+        <div class="left">
+          <div class="name">HOLOGRAPHIC WINDOW 3 — THE ORGAN MAPPING ARRAY</div>
+          <div class="desc">Recon & scanning: wireframe topology. Hosts throb like organs. Sensor suite controls.</div>
+        </div>
+        <div class="badge cyan" id="badgeW3">IDLE</div>
+      </div>
+
+      <div class="holoBody">
+        <div class="viz">
+          <canvas id="vizRecon"></canvas>
+        </div>
+        <div class="panel">
+          <div class="sectionTitle">SENSOR SUITE</div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Quick Pulse Scan (TCP) <small>RAPID DIAGNOSTIC</small></div>
+              <button class="btn" id="btnQuickScan">RAPID DIAGNOSTIC</button>
+            </div>
+            <div class="hint">Simulates a fast port survey and populates the 3D discovery map with host nodes.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Full Spectral Sweep <small>port range</small></div>
+            </div>
+            <input id="rngPortRange" type="range" min="1024" max="65535" step="1023" value="4096">
+            <div class="row" style="margin-top:8px;">
+              <div class="hint">Max port: <span id="portRangeVal" class="cyan" style="font-family:var(--mono);">4096</span></div>
+              <button class="btn secondary" id="btnFullScan">SPECTRAL SWEEP</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">SYN Evasion Protocol <small>Ghost toggle</small></div>
+              <div class="switch" id="swSynGhost" role="switch" aria-checked="false" tabindex="0" title="Affects stealth visuals + scan time"></div>
+            </div>
+            <div class="hint">When active, scan beams go cyan-blue and results trickle slower (stealth simulation).</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">UDP Protocol Analysis <small>fluid analyzer</small></div>
+              <button class="btn secondary" id="btnUdp">ANALYZE</button>
+            </div>
+            <div class="hint">Creates opaque "fluid" packets in the recon visualization and flags uncertain services.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Service / OS Fingerprinting <small>dual reagent dials</small></div>
+            </div>
+            <div class="dialRow">
+              <input id="rngSvc" type="range" min="0" max="100" value="60"/>
+              <input id="rngOs" type="range" min="0" max="100" value="55"/>
+            </div>
+            <div class="row" style="margin-top:8px;">
+              <div class="hint">Reagent 1 (SERVICE): <span id="svcVal" class="cyan" style="font-family:var(--mono);">60</span> — Reagent 2 (OS): <span id="osVal" class="cyan" style="font-family:var(--mono);">55</span></div>
+              <button class="btn" id="btnFingerprint">FINGERPRINT</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Hyperspeed Host Discovery <small>velocity injector</small></div>
+              <button class="btn danger" id="btnMass">VELOCITY INJECT</button>
+            </div>
+            <div class="hint">Rapidly populates the discovery map with many nodes (lab simulation).</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">DNS Zone Extraction <small>root excavator</small></div>
+              <button class="btn secondary" id="btnDNS">EXCAVATE</button>
+            </div>
+            <div class="hint">Fills a segmented bar in the viz and prints enumerated subdomain-like artifacts (synthetic).</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">TLS/SSL Cipher Suite Check <small>decipher wheel</small></div>
+              <button class="btn secondary" id="btnTLS">DECIPHER</button>
+            </div>
+            <div class="hint">Rotating cipher wheel visualization + sample cipher audit output (non-invasive).</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Directory Services Enumeration <small>extractor tray</small></div>
+              <button class="btn" id="btnDirEnum">EXTRACT</button>
+            </div>
+            <div class="hint">Simulates directory "tray pull" extraction and adds cluster nodes to the map.</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CENTRAL: Operating Table -->
+    <section class="central" aria-label="Operating Table Central Console">
+      <div class="centralHeader">
+        <div class="h">
+          <div class="line1">[ <span>NETREAPER v.25</span> | INGRESS STATE: <span id="ingressHeader">OFFLINE</span> | TARGET SPECIMEN: <span id="activeTarget">—</span> ]</div>
+          <div class="line2">OPERATING TABLE — Output & Diagnostics • <b id="alertHeader">NO ACTIVE ALERT</b></div>
+        </div>
+
+        <div style="display:flex; gap:10px; align-items:center;">
+          <div class="targetBox">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label for="targetInput">TARGET</label>
+              <input id="targetInput" type="text" placeholder="e.g. 192.168.1.10" value="192.168.1.10"/>
+            </div>
+            <button class="smallIconBtn" id="btnArm" title="Arm ingress & begin ingest stream">⟡</button>
+            <button class="smallIconBtn" id="btnDisarm" title="Disarm ingress & halt ingest">⟠</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="centralBody">
+        <div class="metrics">
+          <div class="metricsHeader">
+            <div class="t">REAL-TIME METRICS</div>
+            <div class="sub">thermal / vectors / containment</div>
+          </div>
+          <div class="metricsGrid">
+            <div class="gaugeCard">
+              <div class="label">
+                <div class="name">CPU Utilization — Thermal Load</div>
+                <div class="value"><span id="cpuVal">0</span>°C</div>
+              </div>
+              <canvas id="gaugeThermal" width="640" height="132"></canvas>
+            </div>
+            <div class="gaugeCard">
+              <div class="label">
+                <div class="name">Data Throughput — Viral Vector Rate</div>
+                <div class="value"><span id="vvVal">0</span> pkt/s</div>
+              </div>
+              <canvas id="gaugeEKG" width="640" height="132"></canvas>
+            </div>
+            <div class="gaugeCard">
+              <div class="label">
+                <div class="name">Packet Buffer — Spill Containment</div>
+                <div class="value"><span id="bufVal">0</span>%</div>
+              </div>
+              <canvas id="gaugeCyl" width="640" height="132"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="terminal">
+          <div class="terminalHeader">
+            <div class="t">INGEST STREAM</div>
+            <div class="bar">
+              <div class="mini">rate: <span id="ingestRate">0</span>/s</div>
+              <button class="btn ghost" id="btnMark">MARK</button>
+              <button class="btn ghost" id="btnExport">EXPORT</button>
+              <button class="btn ghost" id="btnClearConsole">CLEAR</button>
+            </div>
+          </div>
+          <div class="terminalBody" id="terminalBody" tabindex="0" aria-label="Terminal output">
+            <!-- lines injected by JS -->
+          </div>
+        </div>
+
+        <div class="map">
+          <div class="mapHeader">
+            <div class="t">HOLOGRAPHIC 3D NETWORK DISCOVERY MAP</div>
+            <div class="hint">Drag = rotate • Wheel = zoom • Click node = isolate</div>
+          </div>
+          <canvas id="map3d"></canvas>
+          <div class="mapOverlay">
+            <div class="chip" id="chipPulse">PULSE DISCOVERY</div>
+            <div class="chip cyan" id="chipStabilize">STABILIZE</div>
+            <div class="chip orange" id="chipPurgeMap">PURGE MAP</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WINDOW 2: Pathogen Injector -->
+    <section class="holo" id="w2">
+      <div class="holoHeader">
+        <div class="left">
+          <div class="name">HOLOGRAPHIC WINDOW 2 — THE PATHOGEN INJECTOR</div>
+          <div class="desc">Exploit module: memory map injection zones. Status = <span style="color:rgba(255,102,0,.95)">Bio-Hazard Contamination Level</span>.</div>
+        </div>
+        <div class="badge orange" id="badgeW2">SEALED</div>
+      </div>
+
+      <div class="holoBody">
+        <div class="viz">
+          <canvas id="vizExploit"></canvas>
+        </div>
+        <div class="panel">
+          <div class="sectionTitle">DELIVERY SYSTEM</div>
+
+          <div class="note" style="margin-bottom:10px;">
+            This interface **does not** execute offensive tooling from the browser. Controls here operate a **lab simulation** and can optionally call your own backend endpoints (disabled by default) for **authorized** environments only.
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Metasploit Core Console <small>MSF CORE INITIATE</small></div>
+              <button class="btn danger" id="btnMSF">INITIATE</button>
+            </div>
+            <div class="hint">Simulated core init + contamination ramp. (Backend hook available but off.)</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Payload Gene Generation <small>vial carousel</small></div>
+            </div>
+            <select id="selPayload">
+              <option value="windows">Vial: WINDOWS</option>
+              <option value="linux">Vial: LINUX</option>
+              <option value="php">Vial: PHP</option>
+              <option value="android">Vial: ANDROID</option>
+            </select>
+            <div class="btnRow">
+              <button class="btn" id="btnVialRotate">ROTATE VIALS</button>
+              <button class="btn danger" id="btnGenerate">GENE GENERATE</button>
+            </div>
+            <div class="hint">Creates a synthetic payload "signature" for UI diagnostics.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Resource Script Automation <small>DEPLOY MACRO SEQUENCE</small></div>
+              <button class="btn secondary" id="btnMacro">DEPLOY</button>
+            </div>
+            <div class="hint">Runs a macro timeline in the console, tying actions to map pulses.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">SQL Vulnerability Mapping <small>sonar pulse</small></div>
+              <button class="btn" id="btnSQLBasic">SONAR PULSE</button>
+            </div>
+            <div class="hint">Displays synthetic findings & marks injection zones on the memory map.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Deep-Level Protocol Scan <small>depth lever</small></div>
+            </div>
+            <select id="selDepth">
+              <option value="surface">SURFACE</option>
+              <option value="deep">DEEP</option>
+              <option value="abyssal">ABYSSAL</option>
+            </select>
+            <div class="btnRow">
+              <button class="btn danger" id="btnSQLDeep">DESCEND</button>
+            </div>
+            <div class="hint">Lever depth affects runtime + contamination level in simulation.</div>
+          </div>
+
+          <div class="microInset">
+            <div class="microHead">
+              <div class="tt">NIKTO — MICROSCOPE FEED</div>
+              <div class="pill" style="padding:4px 8px;"><b>DIRS</b> <span id="niktoDirs">0</span></div>
+            </div>
+            <div class="microBody" id="niktoFeed">
+              <!-- synthetic feed -->
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Template-Based Triage <small>PATHOGEN TEMPLATE</small></div>
+            </div>
+            <select id="selTemplate">
+              <option value="cves">Template: CVE SET</option>
+              <option value="misconfig">Template: MISCONFIG</option>
+              <option value="headers">Template: HEADER ANOMALY</option>
+              <option value="auth">Template: AUTH WEAKNESS</option>
+            </select>
+            <div class="btnRow">
+              <button class="btn" id="btnTriage">TRIAGE</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">OS Command Grafting <small>digital scalpel</small></div>
+              <button class="btn danger" id="btnCommix">SCALPEL</button>
+            </div>
+            <div class="hint">Displays risk warnings + records an attempted graft event to the log (no execution).</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Directory / File Extraction <small>excavation drill</small></div>
+            </div>
+            <input id="txtPathSeed" type="text" value="/var/www/html" />
+            <div class="btnRow">
+              <button class="btn secondary" id="btnDrill">DRILL</button>
+            </div>
+            <div class="hint">Spinning drill icon + depth meter in viz, synthetic directory list output.</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- WINDOW 4: Neural Interceptor -->
+    <section class="holo" id="w4">
+      <div class="holoHeader">
+        <div class="left">
+          <div class="name">HOLOGRAPHIC WINDOW 4 — THE NEURAL INTERCEPTOR</div>
+          <div class="desc">Traffic module: nerve fiber cascade. Critical packets flash yellow. Bio-stream taps.</div>
+        </div>
+        <div class="badge" id="badgeW4">TAPPED</div>
+      </div>
+
+      <div class="holoBody">
+        <div class="viz">
+          <canvas id="vizTraffic"></canvas>
+        </div>
+        <div class="panel">
+          <div class="sectionTitle">BIO-STREAM TAPS</div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Raw Packet Siphon <small>3-position selector</small></div>
+            </div>
+            <select id="selSiphon">
+              <option value="drain">DRAIN</option>
+              <option value="filtered">FILTERED</option>
+              <option value="live">LIVE FEED</option>
+            </select>
+            <div class="btnRow">
+              <button class="btn" id="btnSiphonMode">ENGAGE</button>
+            </div>
+            <div class="hint">Affects flow density + what gets highlighted in the traffic viz.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">GUI Bio-Scope <small>Wireshark-style lens</small></div>
+              <button class="btn secondary" id="btnLens">LENS</button>
+            </div>
+            <div class="hint">Zoom lens effect on the nerve stream (pure UI).</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Tshark Data Harvesting <small>reel controls</small></div>
+            </div>
+            <div class="btnRow">
+              <button class="btn ghost" id="btnRewind">REWIND</button>
+              <button class="btn ghost" id="btnFF">FAST-FWD</button>
+              <button class="btn" id="btnHarvest">HARVEST</button>
+            </div>
+            <div class="hint">Filters the synthetic capture window and prints extraction stats.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">PCAP File Autopsy <small>inert vial slot</small></div>
+            </div>
+            <input id="txtPcapName" type="text" value="capture_001.pcap"/>
+            <div class="btnRow">
+              <button class="btn secondary" id="btnAutopsy">AUTOPSY</button>
+            </div>
+            <div class="hint">Loads a synthetic "file" signature, then shows a breakdown in the console.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Credential Exfiltration <small>TOXIN button</small></div>
+              <button class="btn danger" id="btnToxin">TOXIN</button>
+            </div>
+            <div class="hint">Highlights "credential-like" lines in corrosive orange in the ingest stream.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">ARP Poisoning Protocol <small>diverter gate</small></div>
+              <button class="btn danger" id="btnDiverter">DIVERT</button>
+            </div>
+            <div class="hint">Shows a junction schematic in the viz. No actual network manipulation.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">LLMNR/NBT-NS Poisoning <small>echo sounder</small></div>
+              <button class="btn" id="btnEcho">ECHO</button>
+            </div>
+            <div class="hint">Generates captured-hash-like artifacts (synthetic) and marks them in the console.</div>
+          </div>
+
+          <div class="ctrl">
+            <div class="row">
+              <div class="label">Web Traffic Proxy <small>mutation chamber</small></div>
+              <div class="switch" id="swProxy" role="switch" aria-checked="false" tabindex="0"></div>
+            </div>
+            <div class="hint">When active, injects "modified packet" markers into the ingest stream.</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Toasts -->
+  <div class="toastWrap">
+    <div class="toast" id="toast">
+      <div class="t" id="toastTitle">STATUS</div>
+      <div class="msg" id="toastMsg">—</div>
+    </div>
+    <div class="toast orange" id="toast2">
+      <div class="t" id="toast2Title">ALERT</div>
+      <div class="msg" id="toast2Msg">—</div>
+    </div>
+  </div>
+
+  <!-- MODAL: WLAN LAB (Window 5) -->
+  <div class="modalBack" id="modalWLAN" role="dialog" aria-modal="true" aria-label="WLAN Vector Manipulation">
+    <div class="modal">
+      <div class="modalHead">
+        <div class="t">HOLOGRAPHIC WINDOW 5 — WLAN VECTOR MANIPULATION</div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn ghost" id="btnWlanClose">CLOSE</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="note full">
+          This panel models WLAN workflows as **RF Pathology Lab** controls. It does not execute real capture/attack chains. Use it to drive **authorized** backend operations only if you implement them yourself and enable hooks in SYSTEM CORE.
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Interface State Control <small>monitor mode</small></div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button class="btn" id="btnMonStart">START</button>
+              <button class="btn secondary" id="btnMonStop">STOP</button>
+            </div>
+          </div>
+          <div class="hint">Toggles RF field visibility + logs interface state transitions.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Frequency Isolation <small>set channel / hop</small></div>
+          </div>
+          <div class="dialRow">
+            <input id="wlanChannel" type="number" min="1" max="165" value="6"/>
+            <select id="wlanHop">
+              <option value="fixed">FIXED</option>
+              <option value="hop">CHANNEL HOP</option>
+            </select>
+          </div>
+          <div class="btnRow">
+            <button class="btn secondary" id="btnApplyFreq">APPLY</button>
+          </div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Network Discovery <small>monitor</small></div>
+            <button class="btn" id="btnWlanDiscover">DISCOVER</button>
+          </div>
+          <div class="hint">Adds access points + clients as bio-luminescent nodes on the 3D map.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Handshake Capture <small>targeted</small></div>
+          </div>
+          <input id="txtApBssid" type="text" placeholder="Target BSSID (optional for simulation)" value="AA:BB:CC:DD:EE:FF"/>
+          <div class="btnRow">
+            <button class="btn secondary" id="btnHandshake">CAPTURE</button>
+            <button class="btn ghost" id="btnConvertFmt">CONVERT FORMAT</button>
+          </div>
+          <div class="hint">Generates synthetic handshake artifacts and marks them in the ingest stream.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Client Disruption <small>deauthentication</small></div>
+            <button class="btn danger" id="btnDeauth">DISRUPT</button>
+          </div>
+          <div class="hint">UI-only. Emits "disruption event" telemetry. No actual packet injection.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Authentication Bypass <small>fake auth</small></div>
+            <button class="btn danger" id="btnFakeAuth">BYPASS</button>
+          </div>
+          <div class="hint">UI-only. Creates an "authorized test" marker in the console and ramps RF activity.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">ARP Injection <small>ARP replay</small></div>
+            <button class="btn danger" id="btnArpReplay">INJECT</button>
+          </div>
+          <div class="hint">UI-only. Adds high-frequency pulses and "legacy WEP" warning banners.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Legacy WEP/WPA Utility <small>classic crack path</small></div>
+            <button class="btn secondary" id="btnLegacy">RUN LEGACY</button>
+          </div>
+          <div class="hint">Simulation job: produces progress visuals and safe output logs.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">GPU-Accelerated Cracking <small>hashcat (wifi)</small></div>
+            <button class="btn" id="btnWifiGPU">ACCELERATE</button>
+          </div>
+          <div class="hint">Uses the Genome Sequencer GPU breaker state to boost mutation visuals.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Automated Attack Chain <small>wifite style</small></div>
+          <button class="btn danger" id="btnAutoChain">CHAIN</button>
+          </div>
+          <div class="hint">Simulation macro: discovery → capture → convert → analyze. (No real attacks.)</div>
+        </div>
+
+        <div class="ctrl full">
+          <div class="row">
+            <div class="label">Modular RF Framework <small>bettercap tools (modeled)</small></div>
+          </div>
+          <textarea id="txtRfNotes" placeholder="RF Lab notes / presets / documentation..."></textarea>
+          <div class="btnRow">
+            <button class="btn secondary" id="btnSaveRfNotes">SAVE NOTES</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SYSTEM CORE (Window 6) -->
+  <div class="modalBack" id="modalCore" role="dialog" aria-modal="true" aria-label="System Core & Configuration">
+    <div class="modal">
+      <div class="modalHead">
+        <div class="t">HOLOGRAPHIC WINDOW 6 — SYSTEM CORE & CONFIGURATION</div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn ghost" id="btnCoreClose">CLOSE</button>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="note full">
+          SYSTEM CORE manages local UI simulation settings and (optionally) controlled backend hooks. If you enable hooks, only connect this UI to systems you own or have explicit permission to test.
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">System Integrity Check <small>Validate Dependencies</small></div>
+            <button class="btn" id="btnDeps">VALIDATE</button>
+          </div>
+          <div class="hint">Runs a browser capability audit (canvas/audio/storage) and prints results to the ingest stream.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Performance Overload <small>Throttle/Allocate Resources</small></div>
+          </div>
+          <input id="rngPerf" type="range" min="10" max="120" value="60"/>
+          <div class="row" style="margin-top:8px;">
+            <div class="hint">Sim tick rate: <span id="perfVal" class="cyan" style="font-family:var(--mono);">60</span> Hz</div>
+            <button class="btn secondary" id="btnApplyPerf">APPLY</button>
+          </div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Log Management <small>Archive/Purge Activity Logs</small></div>
+          </div>
+          <div class="btnRow">
+            <button class="btn secondary" id="btnArchive">ARCHIVE</button>
+            <button class="btn danger" id="btnPurge">PURGE</button>
+          </div>
+          <div class="hint">Archive downloads a JSON file of session telemetry. Purge wipes local logs and console.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Module Update <small>Fetch Latest Genome Sequencer</small></div>
+            <button class="btn" id="btnUpdate">INITIATE UPDATE</button>
+          </div>
+          <div class="hint">Simulation: prints a "pull / verify / checksum" timeline.</div>
+        </div>
+
+        <div class="ctrl full">
+          <div class="row">
+            <div class="label">Configuration File Editor <small>Modify Core Protocol Stack</small></div>
+          </div>
+          <textarea id="txtConfig"></textarea>
+          <div class="btnRow">
+            <button class="btn secondary" id="btnSaveConfig">SAVE CONFIG</button>
+            <button class="btn ghost" id="btnResetConfig">RESET</button>
+          </div>
+          <div class="hint">Stored locally (localStorage). Includes UI profiles, backend hook toggle, and mapping preferences.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Environment Control <small>Virtualization/Container Status</small></div>
+            <button class="btn secondary" id="btnEnv">SCAN</button>
+          </div>
+          <div class="hint">Browser-only simulation: prints environment "signatures" and toggles an indicator in the top bar.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Backend Hooking <small>authorized lab only</small></div>
+            <div class="switch" id="swHooks" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+          <div class="hint">If enabled, UI will attempt POST calls to <span class="kbd">/api/telemetry</span> and <span class="kbd">/api/action</span> with safe, high-level events (no tool commands included).</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="row">
+            <div class="label">Profile <small>UI behavior presets</small></div>
+          </div>
+          <select id="selProfile">
+            <option value="LAB_SAFE">LAB_SAFE (default)</option>
+            <option value="OPERATOR">OPERATOR (more aggressive visuals)</option>
+            <option value="DIAGNOSTIC">DIAGNOSTIC (slower, verbose)</option>
+          </select>
+          <div class="btnRow">
+            <button class="btn" id="btnApplyProfile">APPLY PROFILE</button>
+          </div>
+          <div class="hint">Profiles alter simulation intensity, alert thresholds, and animation density.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /********************************************************************
+     * NETREAPER v.25 — BIOTECH UI
+     * - Full UI simulation: state, logs, metrics, 3D map, visualizers.
+     * - Safe backend hooks: /api/telemetry and /api/action (disabled by default).
+     * - No offensive tooling execution in-browser.
+     ********************************************************************/
+
+    // ---------- Utilities ----------
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const now = () => performance.now();
+    const rand = (a=0,b=1) => a + Math.random()*(b-a);
+    const pick = (arr) => arr[Math.floor(Math.random()*arr.length)];
+    const pad2 = (n)=> String(n).padStart(2,'0');
+
+    function timeStamp(){
+      const d = new Date();
+      return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+    }
+
+    function downloadText(filename, text){
+      const blob = new Blob([text], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+    }
+
+    // ---------- WebSocket for CLI execution ----------
+    let ws = null;
+    function connectWS(){
+      ws = new WebSocket('ws://localhost:8443/ws');
+      ws.onopen = ()=>{
+        // authenticate
+        ws.send(JSON.stringify({token: 'netreaper123'}));
+        logLine('WS connected and authenticated.', 'cyan');
+      };
+      ws.onmessage = (event)=>{
+        const data = JSON.parse(event.data);
+        if(data.status === 'authenticated'){
+          logLine('WS authenticated.', 'muted');
+        } else if(data.output){
+          logLine(data.output, 'muted');
+        } else if(data.error){
+          logLine(`WS Error: ${data.error}`, 'warn');
+        }
+      };
+      ws.onclose = ()=>{
+        logLine('WS disconnected.', 'warn');
+      };
+      ws.onerror = (err)=>{
+        logLine('WS error.', 'warn');
+      };
+    }
+
+    // ---------- App State ----------
+    const DEFAULT_CONFIG = () => ({
+      profile: "LAB_SAFE",
+      hooksEnabled: false,
+      perfHz: 60,
+      alertThermal: 82,
+      alertContam: 72,
+      target: "192.168.1.10",
+      ui: {
+        bloom: true,
+        reducedConsole: false,
+        map: { zoom: 1.0, autoSpin: true }
+      },
+      notes: {
+        rf: ""
+      }
+    });
+
+    const State = {
+      config: DEFAULT_CONFIG(),
+      ingressOnline: false,
+      stateText: "STANDBY",
+      target: "192.168.1.10",
+      sessionId: crypto?.randomUUID?.() || `sess_${Math.floor(Math.random()*1e9)}`,
+      alert: { active:false, msg:"NO ACTIVE ALERT", severity:"none" },
+      jobs: new Map(), // jobId -> {name, started, progress, meta}
+      metrics: {
+        thermalC: 28,
+        viralRate: 0,
+        bufferPct: 0,
+        contamPct: 0,
+        mutationRate: 0
+      },
+      switches: {
+        hashcatGPU: false,
+        synGhost: false,
+        proxy: false,
+        hooks: false
+      },
+      inputs: {
+        geneString: "",
+        medusaX: 2,
+        portMax: 4096,
+        payload: "windows",
+        depth: "surface",
+        template: "cves",
+        pathSeed: "/var/www/html",
+        siphonMode: "drain"
+      },
+      map: {
+        nodes: [],
+        edges: [],
+        isolated: null,
+        zoom: 1.0,
+        rotX: 0.2,
+        rotY: 0.1,
+        dragging: false,
+        last: {x:0,y:0},
+        autoSpin: true
+      },
+      log: {
+        lines: [],
+        highlightCreds: false
+      },
+      visual: {
+        lens: { active:false, t:0 },
+        circuitFlash: 0
+      }
+    };
+
+    // ---------- Persistence ----------
+    function loadConfig(){
+      try{
+        const raw = localStorage.getItem("netreaper_v25_config");
+        if(!raw) return;
+        const cfg = JSON.parse(raw);
+        State.config = {...DEFAULT_CONFIG(), ...cfg, ui:{...DEFAULT_CONFIG().ui, ...(cfg.ui||{})}, notes:{...DEFAULT_CONFIG().notes, ...(cfg.notes||{})}};
+      }catch(e){}
+    }
+    function saveConfig(){
+      localStorage.setItem("netreaper_v25_config", JSON.stringify(State.config, null, 2));
+    }
+
+    // ---------- Backend hooks (safe) ----------
+    async function postTelemetry(event){
+      if(!State.config.hooksEnabled) return;
+      try{
+        await fetch("/api/telemetry", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({
+            sessionId: State.sessionId,
+            ts: Date.now(),
+            target: State.target,
+            profile: State.config.profile,
+            event
+          })
+        });
+      }catch(e){
+        // silent; we don't spam errors in UI
+      }
+    }
+
+    async function postAction(action){
+      if(!State.config.hooksEnabled) return { ok:false, reason:"hooks_disabled_or_unreachable" };
+      try{
+        const res = await fetch("/api/action", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({
+            sessionId: State.sessionId,
+            ts: Date.now(),
+            target: State.target,
+            profile: State.config.profile,
+            action
+          })
+        });
+        const data = await res.json().catch(()=>({}));
+        return { ok: res.ok, ...data };
+      }catch(e){
+        return { ok:false, reason:"network_error" };
+      }
+    }
+
+    // ---------- Logging ----------
+    const terminalEl = $("#terminalBody");
+    function logLine(text, cls=""){
+      const line = { ts: timeStamp(), text, cls };
+      State.log.lines.push(line);
+      // cap
+      if(State.log.lines.length > 1200) State.log.lines.splice(0, State.log.lines.length - 1200);
+      renderTerminalIncremental(line);
+      postTelemetry({ type:"log", line });
+    }
+
+    function renderTerminalFull(){
+      terminalEl.innerHTML = "";
+      for(const l of State.log.lines) renderTerminalIncremental(l, true);
+      terminalEl.scrollTop = terminalEl.scrollHeight;
+    }
+
+    function renderTerminalIncremental(line, noScroll=false){
+      const div = document.createElement("div");
+      div.className = "line" + (line.cls ? " " + line.cls : "");
+      div.textContent = `[${line.ts}] ${line.text}`;
+      if(State.log.highlightCreds){
+        // naive highlight for "cred:" or "user=" or "pass="
+        if(/(cred:|user=|pass=|hash=|token=)/i.test(line.text)){
+          div.classList.add("warn");
+        }
+      }
+      terminalEl.appendChild(div);
+      if(!noScroll){
+        const atBottom = (terminalEl.scrollHeight - terminalEl.scrollTop - terminalEl.clientHeight) < 60;
+        if(atBottom) terminalEl.scrollTop = terminalEl.scrollHeight;
+      }
+    }
+
+    function mark(){
+      logLine("==== MARKER — specimen state snapshot committed ====", "cyan");
+      const snap = snapshot();
+      logLine(`SNAPSHOT: thermal=${snap.metrics.thermalC.toFixed(1)}C, viral=${snap.metrics.viralRate.toFixed(0)}/s, buffer=${snap.metrics.bufferPct.toFixed(0)}%, contam=${snap.metrics.contamPct.toFixed(0)}%`, "muted");
+    }
+
+    function snapshot(){
+      return {
+        sessionId: State.sessionId,
+        target: State.target,
+        profile: State.config.profile,
+        ingressOnline: State.ingressOnline,
+        switches: {...State.switches},
+        inputs: {...State.inputs},
+        metrics: {...State.metrics},
+        map: {
+          nodes: State.map.nodes.map(n => ({ id:n.id, label:n.label, kind:n.kind, pos:{x:n.x,y:n.y,z:n.z}, risk:n.risk })),
+          edges: State.map.edges.map(e => ({ a:e.a, b:e.b, w:e.w }))
+        },
+        time: Date.now(),
+        logTail: State.log.lines.slice(-200)
+      };
+    }
+
+    function exportLogs(){
+      const data = snapshot();
+      downloadText(`netreaper_${State.sessionId}_export.json`, JSON.stringify(data, null, 2));
+      toast("STATUS", "Export created: session snapshot + last 200 log lines.", false);
+    }
+
+    // ---------- Toasts ----------
+    let toastTimer = null;
+    let toastTimer2 = null;
+
+    function toast(title, msg, isAlert=false){
+      const t = isAlert ? $("#toast2") : $("#toast");
+      const tt = isAlert ? $("#toast2Title") : $("#toastTitle");
+      const tm = isAlert ? $("#toast2Msg") : $("#toastMsg");
+      tt.textContent = title;
+      tm.textContent = msg;
+      t.classList.add("show");
+      if(isAlert){
+        clearTimeout(toastTimer2);
+        toastTimer2 = setTimeout(()=>t.classList.remove("show"), 3800);
+      } else {
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+      }
+    }
+
+    // ---------- Metrics Gauges ----------
+    function getCtx(canvas){
+      const ctx = canvas.getContext("2d", { alpha:true });
+      ctx.imageSmoothingEnabled = true;
+      return ctx;
+    }
+
+    function drawRoundedRect(ctx, x, y, w, h, r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr, y);
+      ctx.arcTo(x+w, y, x+w, y+h, rr);
+      ctx.arcTo(x+w, y+h, x, y+h, rr);
+      ctx.arcTo(x, y+h, x, y, rr);
+      ctx.arcTo(x, y, x+w, y, rr);
+      ctx.closePath();
+    }
+
+    function rgba(hex, a){
+      const h = hex.replace("#","");
+      const r = parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    const gaugeThermal = { canvas: $("#gaugeThermal"), ctx: null, t:0 };
+    const gaugeEKG = { canvas: $("#gaugeEKG"), ctx: null, phase:0, points: new Array(180).fill(0) };
+    const gaugeCyl = { canvas: $("#gaugeCyl"), ctx: null, bubbles: [] };
+
+    function initGauges(){
+      gaugeThermal.ctx = getCtx(gaugeThermal.canvas);
+      gaugeEKG.ctx = getCtx(gaugeEKG.canvas);
+      gaugeCyl.ctx = getCtx(gaugeCyl.canvas);
+
+      for(let i=0;i<26;i++){
+        gaugeCyl.bubbles.push({ x: rand(0,1), y: rand(0,1), r: rand(0.008,0.03), v: rand(0.02,0.10) });
+      }
+    }
+
+    function resizeCanvasToDisplaySize(canvas){
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.floor(rect.width * dpr);
+      const h = Math.floor(rect.height * dpr);
+      if(canvas.width !== w || canvas.height !== h){
+        canvas.width = w;
+        canvas.height = h;
+        return true;
+      }
+      return false;
+    }
+
+    function drawThermal(){
+      const c = gaugeThermal.canvas, ctx = gaugeThermal.ctx;
+      resizeCanvasToDisplaySize(c);
+      const W = c.width, H = c.height;
+      ctx.clearRect(0,0,W,H);
+
+      const v = clamp((State.metrics.thermalC - 20) / 80, 0, 1);
+      const glow = v > 0.75 ? rgba("#ff6600", 0.18) : rgba("#00ff00", 0.12);
+
+      // frame
+      ctx.save();
+      drawRoundedRect(ctx, 10, 10, W-20, H-20, 14);
+      ctx.fillStyle = "rgba(0,0,0,.38)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,153,170,.30)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // liquid bar
+      const innerX=18, innerY=18, innerW=W-36, innerH=H-36;
+      const fillW = innerW * v;
+
+      // background grid
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = "rgba(0,153,170,.20)";
+      ctx.lineWidth = 1;
+      for(let x=innerX; x<=innerX+innerW; x+= (innerW/10)){
+        ctx.beginPath(); ctx.moveTo(x, innerY); ctx.lineTo(x, innerY+innerH); ctx.stroke();
+      }
+      ctx.restore();
+
+      // fill gradient
+      const g = ctx.createLinearGradient(innerX, innerY, innerX+innerW, innerY);
+      g.addColorStop(0, "rgba(0,255,0,.18)");
+      g.addColorStop(0.55, "rgba(0,255,0,.40)");
+      g.addColorStop(0.80, "rgba(255,102,0,.45)");
+      g.addColorStop(1, "rgba(255,102,0,.65)");
+
+      ctx.save();
+      drawRoundedRect(ctx, innerX, innerY, innerW, innerH, 12);
+      ctx.clip();
+
+      // subtle liquid motion
+      const t = now()*0.001;
+      for(let i=0;i<8;i++){
+        const y = innerY + (innerH/8)*i + Math.sin(t*1.3 + i)*2;
+        ctx.fillStyle = i%2? "rgba(255,255,255,.02)" : "rgba(0,0,0,.02)";
+        ctx.fillRect(innerX, y, innerW, innerH/8);
+      }
+
+      ctx.fillStyle = g;
+      ctx.fillRect(innerX, innerY, fillW, innerH);
+
+      // bloom edge
+      ctx.fillStyle = glow;
+      ctx.fillRect(innerX + fillW - 8, innerY, 16, innerH);
+
+      // meniscus
+      ctx.strokeStyle = v>0.75 ? "rgba(255,102,0,.75)" : "rgba(0,255,0,.75)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(innerX + fillW, innerY);
+      ctx.lineTo(innerX + fillW, innerY+innerH);
+      ctx.stroke();
+
+      // heat ripples
+      ctx.globalAlpha = 0.35;
+      for(let i=0;i<6;i++){
+        const rx = innerX + fillW - 30 + i*6;
+        const ry = innerY + innerH/2 + Math.sin(t*2.2 + i)*10;
+        ctx.strokeStyle = v>0.75 ? "rgba(255,102,0,.28)" : "rgba(0,255,0,.20)";
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, 18, 8, 0, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // ticks
+      ctx.save();
+      ctx.fillStyle = "rgba(210,240,245,.65)";
+      ctx.font = `${Math.floor(H*0.23)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      ctx.globalAlpha = 0.55;
+      ctx.fillText("20°C", innerX+8, innerY+innerH-10);
+      ctx.fillText("100°C", innerX+innerW-75, innerY+innerH-10);
+      ctx.restore();
+    }
+
+    function drawEKG(){
+      const c = gaugeEKG.canvas, ctx = gaugeEKG.ctx;
+      resizeCanvasToDisplaySize(c);
+      const W=c.width, H=c.height;
+      ctx.clearRect(0,0,W,H);
+
+      // frame
+      ctx.save();
+      drawRoundedRect(ctx, 10, 10, W-20, H-20, 14);
+      ctx.fillStyle = "rgba(0,0,0,.38)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,153,170,.30)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      const innerX=18, innerY=18, innerW=W-36, innerH=H-36;
+      // grid
+      ctx.save();
+      drawRoundedRect(ctx, innerX, innerY, innerW, innerH, 12);
+      ctx.clip();
+      ctx.globalAlpha = 0.30;
+      ctx.strokeStyle = "rgba(0,153,170,.18)";
+      for(let i=0;i<10;i++){
+        const x = innerX + (innerW/10)*i;
+        ctx.beginPath(); ctx.moveTo(x, innerY); ctx.lineTo(x, innerY+innerH); ctx.stroke();
+      }
+      for(let i=0;i<6;i++){
+        const y = innerY + (innerH/6)*i;
+        ctx.beginPath(); ctx.moveTo(innerX, y); ctx.lineTo(innerX+innerW, y); ctx.stroke();
+      }
+      ctx.restore();
+
+      // update points
+      const rate = State.metrics.viralRate;
+      const base = lerp(0.2, 0.6, clamp(rate/900, 0, 1));
+      const spikeChance = clamp(rate/1400, 0.05, 0.7);
+
+      gaugeEKG.phase += (State.ingressOnline? 1 : 0.25) * lerp(0.6, 2.2, clamp(rate/1200,0,1));
+      const t = gaugeEKG.phase;
+
+      let next = (Math.sin(t*0.25)*0.15) + (rand(-0.03,0.03));
+      // occasional spikes
+      if(State.ingressOnline && Math.random() < spikeChance){
+        next += rand(0.7,1.2);
+        // ripple tail
+        for(let k=0;k<6;k++){
+          gaugeEKG.points[gaugeEKG.points.length-1-k] *= 0.88;
+        }
+      }
+      next = clamp(next, -0.15, 1.3);
+
+      gaugeEKG.points.shift();
+      gaugeEKG.points.push(next);
+
+      // draw waveform
+      const midY = innerY + innerH*0.55;
+      ctx.save();
+      drawRoundedRect(ctx, innerX, innerY, innerW, innerH, 12);
+      ctx.clip();
+
+      // liquid glow underlay
+      const gg = ctx.createLinearGradient(0, innerY, 0, innerY+innerH);
+      gg.addColorStop(0, "rgba(0,255,0,.08)");
+      gg.addColorStop(1, "rgba(0,255,0,.02)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(innerX, innerY, innerW, innerH);
+
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = rate>900 ? "rgba(255,102,0,.85)" : "rgba(0,255,0,.80)";
+      ctx.shadowColor = rate>900 ? "rgba(255,102,0,.40)" : "rgba(0,255,0,.35)";
+      ctx.shadowBlur = 18;
+
+      ctx.beginPath();
+      for(let i=0;i<gaugeEKG.points.length;i++){
+        const x = innerX + (innerW/(gaugeEKG.points.length-1))*i;
+        const p = gaugeEKG.points[i];
+        // shape: baseline + spike
+        const y = midY - (p * innerH * base);
+        if(i===0) ctx.moveTo(x,y);
+        else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+
+      // organic particles (vector beads)
+      ctx.shadowBlur = 0;
+      for(let i=0;i<8;i++){
+        const x = innerX + rand(0,innerW);
+        const y = innerY + rand(0,innerH);
+        ctx.fillStyle = "rgba(0,255,0,.10)";
+        ctx.beginPath();
+        ctx.arc(x,y, rand(1,3), 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCyl(){
+      const c = gaugeCyl.canvas, ctx = gaugeCyl.ctx;
+      resizeCanvasToDisplaySize(c);
+      const W=c.width, H=c.height;
+      ctx.clearRect(0,0,W,H);
+
+      // frame
+      ctx.save();
+      drawRoundedRect(ctx, 10, 10, W-20, H-20, 14);
+      ctx.fillStyle = "rgba(0,0,0,.38)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,153,170,.30)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      const innerX=18, innerY=18, innerW=W-36, innerH=H-36;
+      const v = clamp(State.metrics.bufferPct/100, 0, 1);
+
+      ctx.save();
+      drawRoundedRect(ctx, innerX, innerY, innerW, innerH, 12);
+      ctx.clip();
+
+      // cylinder shape fill
+      const fillH = innerH * v;
+      const y0 = innerY + innerH - fillH;
+
+      const g = ctx.createLinearGradient(0, y0, 0, innerY+innerH);
+      g.addColorStop(0, "rgba(0,255,0,.10)");
+      g.addColorStop(0.6, "rgba(0,255,0,.28)");
+      g.addColorStop(1, "rgba(0,153,170,.18)");
+
+      ctx.fillStyle = "rgba(0,0,0,.22)";
+      ctx.fillRect(innerX, innerY, innerW, innerH);
+
+      ctx.fillStyle = g;
+      ctx.fillRect(innerX, y0, innerW, fillH);
+
+      // meniscus
+      ctx.strokeStyle = v>0.85 ? "rgba(255,102,0,.75)" : "rgba(0,255,0,.65)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(innerX, y0);
+      ctx.lineTo(innerX+innerW, y0);
+      ctx.stroke();
+
+      // bubbles rising in the liquid area
+      const dt = 1 / Math.max(15, State.config.perfHz);
+      for(const b of gaugeCyl.bubbles){
+        b.y -= b.v * dt * (State.ingressOnline ? 1.0 : 0.35);
+        if(b.y < 0) { b.y = 1; b.x = rand(0,1); b.r = rand(0.008,0.03); }
+        const bx = innerX + b.x * innerW;
+        const by = y0 + b.y * fillH;
+        if(by < innerY + innerH && by > y0){
+          ctx.fillStyle = "rgba(255,255,255,.06)";
+          ctx.beginPath();
+          ctx.arc(bx, by, b.r * innerW, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+
+      // containment stripes
+      ctx.globalAlpha = 0.20;
+      ctx.fillStyle = "rgba(0,153,170,.25)";
+      for(let i=0;i<9;i++){
+        ctx.fillRect(innerX + i*(innerW/9), innerY, 1, innerH);
+      }
+
+      ctx.restore();
+
+      // tick labels
+      ctx.save();
+      ctx.fillStyle = "rgba(210,240,245,.65)";
+      ctx.globalAlpha = 0.55;
+      ctx.font = `${Math.floor(H*0.23)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      ctx.fillText("0%", innerX+8, innerY+innerH-10);
+      ctx.fillText("100%", innerX+innerW-64, innerY+innerH-10);
+      ctx.restore();
+    }
+
+    // ---------- Substrate Hex Lattice + Circuit Flashes ----------
+    const hexCanvas = $("#hexCanvas");
+    const circuitCanvas = $("#circuitCanvas");
+    const hexCtx = hexCanvas.getContext("2d");
+    const circuitCtx = circuitCanvas.getContext("2d");
+
+    function resizeSubstrate(){
+      resizeCanvasToDisplaySize(hexCanvas);
+      resizeCanvasToDisplaySize(circuitCanvas);
+    }
+
+    function drawHexLattice(){
+      const W=hexCanvas.width, H=hexCanvas.height;
+      hexCtx.clearRect(0,0,W,H);
+
+      const t = now()*0.00008;
+      const scale = Math.max(70, Math.min(120, Math.floor(Math.min(W,H)/12)));
+      const a = scale;
+      const h = Math.sin(Math.PI/3)*a;
+
+      // pseudo 3D skew
+      const skew = Math.sin(now()*0.00015)*0.12;
+      const ox = W*0.5 + Math.sin(now()*0.00008)*W*0.02;
+      const oy = H*0.45 + Math.cos(now()*0.00007)*H*0.02;
+
+      hexCtx.save();
+      hexCtx.translate(ox, oy);
+      hexCtx.scale(1.0, 1.0);
+      hexCtx.rotate(skew);
+
+      const cols = Math.ceil(W / (a*1.5)) + 6;
+      const rows = Math.ceil(H / (h*2)) + 6;
+
+      hexCtx.lineWidth = 1;
+      for(let r=-rows; r<rows; r++){
+        for(let c=-cols; c<cols; c++){
+          const x = (c * a * 1.5);
+          const y = (r * h * 2) + (c%2 ? h : 0);
+
+          const dist = Math.hypot(x,y);
+          const depth = clamp(1 - dist/(Math.min(W,H)*0.65), 0, 1);
+          const wobble = Math.sin(t*8 + dist*0.01) * 0.12;
+
+          const alpha = 0.08 + depth*0.13;
+          hexCtx.strokeStyle = `rgba(0,153,170,${alpha})`;
+
+          // occasional nerve flicker
+          if(Math.random() < 0.0025){
+            hexCtx.strokeStyle = `rgba(0,255,0,${0.12 + depth*0.18})`;
+          }
+
+          // draw hex
+          hexCtx.beginPath();
+          for(let i=0;i<6;i++){
+            const ang = Math.PI/3 * i + wobble;
+            const px = x + Math.cos(ang)*a;
+            const py = y + Math.sin(ang)*a;
+            if(i===0) hexCtx.moveTo(px,py);
+            else hexCtx.lineTo(px,py);
+          }
+          hexCtx.closePath();
+          hexCtx.stroke();
+
+          // subtle fill
+          if(depth>0.65){
+            hexCtx.fillStyle = `rgba(0,255,0,${0.008 + depth*0.01})`;
+            hexCtx.fill();
+          }
+        }
+      }
+
+      hexCtx.restore();
+    }
+
+    function drawCircuitFlashes(){
+      const W=circuitCanvas.width, H=circuitCanvas.height;
+      circuitCtx.clearRect(0,0,W,H);
+      const flash = State.visual.circuitFlash;
+
+      if(flash <= 0) return;
+
+      circuitCtx.save();
+      circuitCtx.globalAlpha = clamp(flash,0,1) * 0.8;
+      circuitCtx.strokeStyle = "rgba(0,255,0,.25)";
+      circuitCtx.lineWidth = 1;
+
+      // random traces
+      const count = 60;
+      for(let i=0;i<count;i++){
+        const x0 = rand(0,W), y0 = rand(0,H);
+        const segs = 4 + Math.floor(rand(0,5));
+        circuitCtx.beginPath();
+        circuitCtx.moveTo(x0,y0);
+        let x=x0, y=y0;
+        for(let s=0;s<segs;s++){
+          if(Math.random()<0.5) x += rand(-120,120);
+          else y += rand(-120,120);
+          circuitCtx.lineTo(clamp(x,0,W), clamp(y,0,H));
+        }
+        circuitCtx.stroke();
+      }
+
+      // faint bloom
+      circuitCtx.globalAlpha *= 0.25;
+      circuitCtx.lineWidth = 3;
+      circuitCtx.strokeStyle = "rgba(0,255,0,.18)";
+      circuitCtx.strokeRect(12,12,W-24,H-24);
+
+      circuitCtx.restore();
+    }
+
+    function maybeFlashCircuits(){
+      if(Math.random() < 0.012){
+        State.visual.circuitFlash = 1.0;
+      }
+      State.visual.circuitFlash *= 0.92;
+    }
+
+    // ---------- Holo Visualizers ----------
+    function drawGenomeViz(){
+      const c=$("#vizGenome"), ctx=c.getContext("2d");
+      resizeCanvasToDisplaySize(c);
+      const W=c.width,H=c.height;
+      ctx.clearRect(0,0,W,H);
+
+      // base
+      ctx.fillStyle="rgba(0,0,0,.35)";
+      ctx.fillRect(0,0,W,H);
+
+      // DNA helix unwinding
+      const t = now()*0.001;
+      const strands = 2;
+      const cx=W*0.5, cy=H*0.5;
+      const amp = Math.min(W,H)*0.22;
+      const len = H*0.85;
+
+      // actuators
+      ctx.save();
+      ctx.strokeStyle = "rgba(0,153,170,.35)";
+      ctx.lineWidth = 2;
+      for(let i=0;i<3;i++){
+        const ax = W*(0.18 + i*0.32);
+        ctx.beginPath();
+        ctx.moveTo(ax, H*0.08);
+        ctx.lineTo(ax, H*0.26);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.rect(ax-14, H*0.05, 28, 16);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // mutation intensity
+      const gpuBoost = State.switches.hashcatGPU ? 1.0 : 0.0;
+      const rule = State.inputs.hashcatRule || "default";
+      const ruleBoost = rule==="t1000" ? 0.25 : rule==="f14" ? 0.18 : 0.10;
+      const mut = clamp(State.metrics.mutationRate/100, 0, 1);
+
+      // strands
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.shadowColor = gpuBoost ? "rgba(255,102,0,.35)" : "rgba(0,255,0,.28)";
+      ctx.shadowBlur = gpuBoost ? 26 : 18;
+      ctx.lineWidth = 2.2;
+
+      for(let s=0;s<strands;s++){
+        const phase = s*Math.PI;
+        ctx.strokeStyle = gpuBoost
+          ? `rgba(255,102,0,${0.55 + 0.25*mut})`
+          : `rgba(0,255,0,${0.55 + 0.25*mut})`;
+        ctx.beginPath();
+
+        const steps = 140;
+        for(let i=0;i<=steps;i++){
+          const yy = -len/2 + (len/steps)*i;
+          const wob = Math.sin(t*1.8 + i*0.12 + phase) * (0.20 + mut*0.45 + ruleBoost);
+          const xx = Math.sin(i*0.20 + t*1.6 + phase) * amp * (0.55 + wob);
+          const px = xx * (1.0 + (yy/len)*0.18);
+          const py = yy;
+          if(i===0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+
+      // rungs
+      ctx.shadowBlur = 0;
+      for(let i=0;i<30;i++){
+        const yy = -len/2 + (len/30)*i + Math.sin(t*2 + i)*2;
+        const left = Math.sin(i*0.20 + t*1.6) * amp * 0.6;
+        const right= Math.sin(i*0.20 + t*1.6 + Math.PI) * amp * 0.6;
+        ctx.strokeStyle = "rgba(0,153,170,.35)";
+        ctx.beginPath();
+        ctx.moveTo(left, yy);
+        ctx.lineTo(right, yy);
+        ctx.stroke();
+      }
+
+      // heat coils (when GPU breaker on)
+      if(gpuBoost){
+        ctx.save();
+        const coilX = -W*0.36, coilY = -H*0.32;
+        for(let i=0;i<16;i++){
+          const y = coilY + i*(H*0.03);
+          ctx.strokeStyle = `rgba(255,102,0,${0.15 + 0.35*Math.abs(Math.sin(t*2+i))})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(coilX, y, 14 + 6*Math.sin(t*1.5+i), 0, Math.PI*2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore();
+
+      // mutation meter
+      const barW = W*0.76, barH = 12, bx=W*0.12, by=H*0.86;
+      ctx.strokeStyle="rgba(0,153,170,.35)";
+      ctx.strokeRect(bx,by,barW,barH);
+      ctx.fillStyle = gpuBoost ? "rgba(255,102,0,.35)" : "rgba(0,255,0,.24)";
+      ctx.fillRect(bx,by,barW*mut,barH);
+      ctx.fillStyle="rgba(210,240,245,.70)";
+      ctx.font = `${Math.floor(H*0.085)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      ctx.fillText(`Mutation Rate: ${(mut*100).toFixed(0)}%`, bx, by-8);
+    }
+
+    function drawReconViz(){
+      const c=$("#vizRecon"), ctx=c.getContext("2d");
+      resizeCanvasToDisplaySize(c);
+      const W=c.width,H=c.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle="rgba(0,0,0,.35)";
+      ctx.fillRect(0,0,W,H);
+
+      const t = now()*0.001;
+      const nodes = State.map.nodes.slice(0, 30);
+
+      // wireframe topology
+      ctx.save();
+      ctx.translate(W*0.5, H*0.52);
+      ctx.scale(1.0, 1.0);
+
+      // faint grid
+      ctx.globalAlpha = 0.25;
+      ctx.strokeStyle="rgba(0,153,170,.20)";
+      for(let i=0;i<10;i++){
+        const x = lerp(-W*0.38, W*0.38, i/9);
+        ctx.beginPath(); ctx.moveTo(x, -H*0.35); ctx.lineTo(x, H*0.35); ctx.stroke();
+      }
+      for(let i=0;i<8;i++){
+        const y = lerp(-H*0.30, H*0.30, i/7);
+        ctx.beginPath(); ctx.moveTo(-W*0.40, y); ctx.lineTo(W*0.40, y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // link lines
+      ctx.lineWidth = 1.2;
+      const ghost = State.switches.synGhost;
+      ctx.strokeStyle = ghost ? "rgba(0,153,170,.55)" : "rgba(0,255,0,.32)";
+      for(let i=0;i<nodes.length;i++){
+        for(let j=i+1;j<nodes.length;j++){
+          if(Math.random() < 0.03){
+            const a=nodes[i], b=nodes[j];
+            ctx.beginPath();
+            ctx.moveTo(a.x*90, a.y*60);
+            ctx.lineTo(b.x*90, b.y*60);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // hosts as throbbing organs
+      for(const n of nodes){
+        const pulse = 0.6 + 0.4*Math.sin(t*3 + n.seed);
+        const r = 5 + pulse*7 + n.risk*4;
+        const col = n.risk > 0.65 ? "rgba(255,102,0,.90)" : ghost ? "rgba(0,153,170,.90)" : "rgba(0,255,0,.90)";
+        ctx.fillStyle = col;
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(n.x*90, n.y*60, r, 0, Math.PI*2);
+        ctx.fill();
+
+        // heartbeat ring
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = n.risk > 0.65 ? "rgba(255,102,0,.25)" : "rgba(0,255,0,.18)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(n.x*90, n.y*60, r + 10*pulse, 0, Math.PI*2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // scan beam
+      const y = (Math.sin(t*0.9)+1)*0.5 * H;
+      ctx.fillStyle = ghost ? "rgba(0,153,170,.08)" : "rgba(0,255,0,.06)";
+      ctx.fillRect(0, y-14, W, 28);
+      ctx.fillStyle = ghost ? "rgba(0,153,170,.16)" : "rgba(0,255,0,.12)";
+      ctx.fillRect(0, y-2, W, 4);
+
+      // status
+      ctx.fillStyle="rgba(210,240,245,.70)";
+      ctx.font = `${Math.floor(H*0.085)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      ctx.fillText(`Topology: ${State.map.nodes.length} hosts`, 12, 24);
+      ctx.fillText(`Port max: ${State.inputs.portMax}`, 12, 44);
+      ctx.fillText(`Ghost SYN: ${State.switches.synGhost ? "ON" : "OFF"}`, 12, 64);
+    }
+
+    function drawExploitViz(){
+      const c=$("#vizExploit"), ctx=c.getContext("2d");
+      resizeCanvasToDisplaySize(c);
+      const W=c.width,H=c.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle="rgba(0,0,0,.35)";
+      ctx.fillRect(0,0,W,H);
+
+      const t = now()*0.001;
+      const contam = clamp(State.metrics.contamPct/100, 0, 1);
+
+      // memory map blocks
+      const cols = 12, rows = 7;
+      const margin = 12;
+      const gx = margin, gy = margin+16, gw = W - margin*2, gh = H - margin*2 - 24;
+      const cw = gw/cols, ch = gh/rows;
+
+      // header
+      ctx.fillStyle="rgba(210,240,245,.70)";
+      ctx.font = `${Math.floor(H*0.085)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      ctx.fillText(`Contamination Level: ${(contam*100).toFixed(0)}%`, 12, 22);
+
+      for(let r=0;r<rows;r++){
+        for(let c0=0;c0<cols;c0++){
+          const x = gx + c0*cw;
+          const y = gy + r*ch;
+          const p = (r*cols + c0)/(rows*cols);
+          const hot = (p < contam) ? 1 : 0;
+
+          const shimmer = 0.15 + 0.12*Math.sin(t*2 + p*10);
+          ctx.strokeStyle = "rgba(0,153,170,.30)";
+          ctx.strokeRect(x+2,y+2,cw-4,ch-4);
+
+          if(hot){
+            ctx.fillStyle = `rgba(255,102,0,${0.10 + shimmer})`;
+            ctx.fillRect(x+2,y+2,cw-4,ch-4);
+            // injection mark
+            if(Math.random() < 0.02){
+              ctx.strokeStyle = "rgba(255,235,170,.60)";
+              ctx.beginPath();
+              ctx.moveTo(x+6,y+6);
+              ctx.lineTo(x+cw-6,y+ch-6);
+              ctx.stroke();
+            }
+          } else {
+            ctx.fillStyle = `rgba(0,255,0,${0.02 + shimmer*0.08})`;
+            ctx.fillRect(x+2,y+2,cw-4,ch-4);
+          }
+        }
+      }
+
+      // injector vectors
+      ctx.save();
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = contam>0.6 ? "rgba(255,102,0,.55)" : "rgba(0,255,0,.25)";
+      ctx.lineWidth = 2;
+      for(let i=0;i<6;i++){
+        const x0 = W*0.08;
+        const y0 = H*(0.25 + i*0.11);
+        const x1 = W*(0.35 + 0.35*Math.sin(t*0.7 + i));
+        const y1 = H*(0.20 + 0.60*Math.abs(Math.sin(t*0.5 + i)));
+        ctx.beginPath();
+        ctx.moveTo(x0,y0);
+        ctx.bezierCurveTo(W*0.18, y0, W*0.22, y1, x1, y1);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // hazard bar
+      const barW = W*0.76, barH = 12, bx=W*0.12, by=H-20;
+      ctx.strokeStyle="rgba(0,153,170,.35)";
+      ctx.strokeRect(bx,by,barW,barH);
+      ctx.fillStyle="rgba(255,102,0,.25)";
+      ctx.fillRect(bx,by,barW*contam,barH);
+    }
+
+    function drawTrafficViz(){
+      const c=$("#vizTraffic"), ctx=c.getContext("2d");
+      resizeCanvasToDisplaySize(c);
+      const W=c.width,H=c.height;
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle="rgba(0,0,0,.35)";
+      ctx.fillRect(0,0,W,H);
+
+      const t = now()*0.001;
+      const mode = State.inputs.siphonMode;
+
+      // nerve fibers
+      const fibers = mode==="live" ? 46 : mode==="filtered" ? 30 : 18;
+      for(let i=0;i<fibers;i++){
+        const x = (i/(fibers-1))*W;
+        const sway = Math.sin(t*1.8 + i*0.4) * (8 + 10*(mode==="live"));
+        ctx.strokeStyle = "rgba(0,153,170,.18)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        for(let y=0;y<=H;y+=22){
+          const xx = x + Math.sin(t*2.3 + y*0.03 + i)*sway;
+          ctx.lineTo(xx, y);
+        }
+        ctx.stroke();
+
+        // packets flowing down
+        const speed = mode==="live" ? 220 : mode==="filtered" ? 150 : 90;
+        const y = (t*speed + i*37) % (H+40) - 20;
+        const critical = (Math.sin(t*1.7 + i) > 0.92);
+        ctx.fillStyle = critical ? "rgba(255,235,170,.90)" : "rgba(0,255,0,.55)";
+        ctx.shadowColor = critical ? "rgba(255,235,170,.35)" : "rgba(0,255,0,.25)";
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.ellipse(x + sway*0.4, y, 5, 10, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // proxy mutation chamber effect
+      if(State.switches.proxy){
+        ctx.fillStyle = "rgba(255,102,0,.06)";
+        ctx.fillRect(0, H*0.55, W, H*0.12);
+        ctx.fillStyle = "rgba(255,102,0,.12)";
+        ctx.fillRect(0, H*0.61, W, 3);
+      }
+
+      // lens effect
+      if(State.visual.lens.active){
+        State.visual.lens.t += 0.016;
+        const lx = W*(0.58 + 0.12*Math.sin(t*0.7));
+        const ly = H*(0.40 + 0.14*Math.cos(t*0.9));
+        const r = Math.min(W,H)*0.18;
+        const grad = ctx.createRadialGradient(lx,ly, r*0.15, lx,ly, r);
+        grad.addColorStop(0, "rgba(0,255,0,.10)");
+        grad.addColorStop(0.6, "rgba(0,153,170,.08)");
+        grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(lx,ly,r,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle="rgba(210,240,245,.25)";
+        ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(lx,ly,r,0,Math.PI*2); ctx.stroke();
+
+        if(State.visual.lens.t > 3.5){
+          State.visual.lens.active=false;
+          State.visual.lens.t=0;
+        }
+      }
+
+      // header
+      ctx.fillStyle="rgba(210,240,245,.70)";
+      ctx.font = `${Math.floor(H*0.085)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      ctx.fillText(`Tap Mode: ${mode.toUpperCase()}  | Proxy: ${State.switches.proxy ? "ON" : "OFF"}`, 12, 22);
+    }
+
+    // ---------- 3D Network Map ----------
+    const mapCanvas = $("#map3d");
+    const mapCtx = mapCanvas.getContext("2d");
+
+    function resetMap(){
+      State.map.nodes = [];
+      State.map.edges = [];
+      State.map.isolated = null;
+    }
+
+    function addNode(kind="host", label="host"){
+      const id = `n${Math.floor(Math.random()*1e9)}`;
+      const n = {
+        id,
+        kind,
+        label,
+        x: rand(-1,1),
+        y: rand(-1,1),
+        z: rand(-1,1),
+        vx:0, vy:0, vz:0,
+        seed: rand(0,999),
+        risk: rand(0.05, 0.95)
+      };
+      State.map.nodes.push(n);
+      return n;
+    }
+
+    function link(a,b,w=1){
+      State.map.edges.push({ a:a.id, b:b.id, w });
+    }
+
+    function seedMap(count=10, kind="host"){
+      const nodes = [];
+      for(let i=0;i<count;i++){
+        nodes.push(addNode(kind, kind==="ap" ? `AP-${i+1}` : kind==="client" ? `CL-${i+1}` : `H-${i+1}`));
+      }
+      // sparse links
+      for(let i=0;i<nodes.length;i++){
+        for(let j=i+1;j<nodes.length;j++){
+          if(Math.random() < 0.15) link(nodes[i], nodes[j], rand(0.5,2));
+        }
+      }
+      // connect to existing
+      const existing = State.map.nodes.filter(n => !nodes.includes(n));
+      if(existing.length){
+        for(const n of nodes){
+          if(Math.random() < 0.75){
+            link(n, pick(existing), rand(0.5,2));
+          }
+        }
+      }
+      return nodes;
+    }
+
+    function mapProject(n, W, H){
+      // rotate
+      const rx = State.map.rotX, ry = State.map.rotY;
+      let x=n.x, y=n.y, z=n.z;
+
+      // rotate around Y
+      let x1 = x*Math.cos(ry) + z*Math.sin(ry);
+      let z1 = -x*Math.sin(ry) + z*Math.cos(ry);
+
+      // rotate around X
+      let y1 = y*Math.cos(rx) - z1*Math.sin(rx);
+      let z2 = y*Math.sin(rx) + z1*Math.cos(rx);
+
+      const zoom = State.map.zoom;
+      const depth = (z2*0.6 + 1.6); // avoid divide by zero
+      const s = (zoom * 0.85) / depth;
+
+      const px = W*0.5 + x1*W*0.28*s;
+      const py = H*0.55 + y1*H*0.26*s;
+
+      return { px, py, s, depth };
+    }
+
+    function stepMapPhysics(dt){
+      // simple force-directed drift
+      const nodes = State.map.nodes;
+      const edges = State.map.edges;
+
+      // isolate filtering
+      const isolated = State.map.isolated;
+      const activeNodes = isolated ? nodes.filter(n => n.id===isolated || edges.some(e => (e.a===isolated && e.b===n.id) || (e.b===isolated && e.a===n.id))) : nodes;
+
+      // repulsion
+      for(let i=0;i<activeNodes.length;i++){
+        for(let j=i+1;j<activeNodes.length;j++){
+          const a=activeNodes[i], b=activeNodes[j];
+          const dx=a.x-b.x, dy=a.y-b.y, dz=a.z-b.z;
+          const d2 = dx*dx+dy*dy+dz*dz + 0.03;
+          const f = 0.012 / d2;
+          a.vx += (dx)*f; a.vy += (dy)*f; a.vz += (dz)*f;
+          b.vx -= (dx)*f; b.vy -= (dy)*f; b.vz -= (dz)*f;
+        }
+      }
+
+      // spring edges
+      for(const e of edges){
+        const a = nodes.find(n=>n.id===e.a);
+        const b = nodes.find(n=>n.id===e.b);
+        if(!a || !b) continue;
+        if(isolated && (a.id!==isolated && b.id!==isolated)) continue;
+
+        const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
+        const d = Math.sqrt(dx*dx+dy*dy+dz*dz) + 1e-6;
+        const rest = 0.75;
+        const k = 0.02 * (e.w || 1);
+        const f = (d-rest)*k;
+        const nx=dx/d, ny=dy/d, nz=dz/d;
+        a.vx += nx*f; a.vy += ny*f; a.vz += nz*f;
+        b.vx -= nx*f; b.vy -= ny*f; b.vz -= nz*f;
+      }
+
+      // integrate + damping
+      for(const n of nodes){
+        n.vx *= 0.92; n.vy *= 0.92; n.vz *= 0.92;
+        n.x += n.vx*dt*60;
+        n.y += n.vy*dt*60;
+        n.z += n.vz*dt*60;
+
+        // bound
+        const m=1.25;
+        n.x = clamp(n.x, -m, m);
+        n.y = clamp(n.y, -m, m);
+        n.z = clamp(n.z, -m, m);
+      }
+    }
+
+    function drawMap(){
+      resizeCanvasToDisplaySize(mapCanvas);
+      const W=mapCanvas.width, H=mapCanvas.height;
+      mapCtx.clearRect(0,0,W,H);
+
+      // backdrop glow
+      const g = mapCtx.createRadialGradient(W*0.5,H*0.45, 40, W*0.5,H*0.45, Math.max(W,H)*0.65);
+      g.addColorStop(0, "rgba(0,255,0,.05)");
+      g.addColorStop(0.6, "rgba(0,153,170,.06)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      mapCtx.fillStyle=g;
+      mapCtx.fillRect(0,0,W,H);
+
+      const nodes = State.map.nodes;
+      const edges = State.map.edges;
+      const isolated = State.map.isolated;
+
+      // projection cache
+      const proj = new Map();
+      for(const n of nodes){
+        proj.set(n.id, mapProject(n,W,H));
+      }
+
+      // edges
+      mapCtx.save();
+      mapCtx.lineWidth = 1.4;
+      for(const e of edges){
+        if(isolated && e.a!==isolated && e.b!==isolated) continue;
+        const A = nodes.find(n=>n.id===e.a);
+        const B = nodes.find(n=>n.id===e.b);
+        if(!A||!B) continue;
+        const pa=proj.get(A.id), pb=proj.get(B.id);
+        const alpha = clamp(0.08 + (1/(pa.depth+pb.depth))*0.18, 0.06, 0.28);
+        mapCtx.strokeStyle = isolated ? "rgba(0,153,170,.32)" : `rgba(0,255,0,${alpha})`;
+        mapCtx.beginPath();
+        mapCtx.moveTo(pa.px, pa.py);
+        mapCtx.lineTo(pb.px, pb.py);
+        mapCtx.stroke();
+      }
+      mapCtx.restore();
+
+      // nodes (sorted by depth)
+      const sorted = [...nodes].sort((a,b)=> (proj.get(b.id).depth - proj.get(a.id).depth));
+      for(const n of sorted){
+        if(isolated){
+          const connected = (n.id===isolated) || edges.some(e => (e.a===isolated && e.b===n.id) || (e.b===isolated && e.a===n.id));
+          if(!connected) continue;
+        }
+        const p = proj.get(n.id);
+        const rBase = n.kind==="ap" ? 7 : n.kind==="client" ? 5 : 6;
+        const pulse = 0.75 + 0.25*Math.sin(now()*0.002 + n.seed);
+        const r = rBase * pulse * (1.0 + (1.0/(p.depth))*0.25);
+
+        let col = "rgba(0,255,0,.85)";
+        if(n.risk > 0.78) col = "rgba(255,102,0,.92)";
+        if(n.kind==="ap") col = "rgba(0,153,170,.92)";
+        if(n.kind==="client") col = "rgba(255,235,170,.88)";
+
+        mapCtx.save();
+        mapCtx.shadowColor = col;
+        mapCtx.shadowBlur = 20;
+        mapCtx.fillStyle = col;
+        mapCtx.beginPath();
+        mapCtx.arc(p.px, p.py, r, 0, Math.PI*2);
+        mapCtx.fill();
+        mapCtx.shadowBlur = 0;
+
+        // label
+        mapCtx.font = `${Math.floor(12*(window.devicePixelRatio||1))}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+        mapCtx.fillStyle = "rgba(210,240,245,.72)";
+        mapCtx.fillText(n.label, p.px + r + 6, p.py + 4);
+
+        // risk ring
+        if(n.risk>0.65){
+          mapCtx.strokeStyle = "rgba(255,102,0,.30)";
+          mapCtx.lineWidth = 2;
+          mapCtx.beginPath();
+          mapCtx.arc(p.px, p.py, r + 10*(1/(p.depth))*pulse, 0, Math.PI*2);
+          mapCtx.stroke();
+        }
+
+        mapCtx.restore();
+      }
+
+      // isolate indicator
+      mapCtx.save();
+      mapCtx.fillStyle = "rgba(210,240,245,.66)";
+      mapCtx.font = `${Math.floor(13*(window.devicePixelRatio||1))}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+      const label = isolated ? `Isolate: ${nodes.find(n=>n.id===isolated)?.label || isolated}` : "Isolate: NONE";
+      mapCtx.fillText(label, 12*(window.devicePixelRatio||1), (H-14*(window.devicePixelRatio||1)));
+      mapCtx.restore();
+    }
+
+    function mapPickNode(clientX, clientY){
+      const rect = mapCanvas.getBoundingClientRect();
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const x = (clientX - rect.left) * dpr;
+      const y = (clientY - rect.top) * dpr;
+      const W = mapCanvas.width, H = mapCanvas.height;
+
+      let best = null;
+      let bestD = 1e9;
+      for(const n of State.map.nodes){
+        const p = mapProject(n,W,H);
+        const r = (n.kind==="ap"?7:n.kind==="client"?5:6) * (0.8 + 0.2*Math.sin(now()*0.002+n.seed));
+        const d = Math.hypot(p.px-x, p.py-y);
+        if(d < r+8 && d < bestD){
+          best=n; bestD=d;
+        }
+      }
+      return best;
+    }
+
+    // ---------- Audio (water drips + low hum) ----------
+    let audio = {
+      ctx: null,
+      master: null,
+      enabled: false,
+      hum: null,
+      dripTimer: null
+    };
+
+    function initAudio(){
+      if(audio.ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      audio.ctx = new AC();
+      audio.master = audio.ctx.createGain();
+      audio.master.gain.value = 0.16;
+      audio.master.connect(audio.ctx.destination);
+
+      // low hum
+      const osc = audio.ctx.createOscillator();
+      osc.type="sine";
+      osc.frequency.value = 46;
+      const humGain = audio.ctx.createGain();
+      humGain.gain.value = 0.18;
+
+      // subtle "air" noise
+      const noise = audio.ctx.createBufferSource();
+      const buffer = audio.ctx.createBuffer(1, audio.ctx.sampleRate*1.5, audio.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<data.length;i++){
+        data[i] = (Math.random()*2-1) * 0.04;
+      }
+      noise.buffer = buffer;
+      noise.loop = true;
+
+      const noiseFilter = audio.ctx.createBiquadFilter();
+      noiseFilter.type="lowpass";
+      noiseFilter.frequency.value = 180;
+      const noiseGain = audio.ctx.createGain();
+      noiseGain.gain.value = 0.08;
+
+      osc.connect(humGain);
+      humGain.connect(audio.master);
+
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(audio.master);
+
+      osc.start();
+      noise.start();
+
+      audio.hum = { osc, humGain, noise, noiseGain };
+    }
+
+    function drip(){
+      if(!audio.ctx || !audio.enabled) return;
+      const t0 = audio.ctx.currentTime + 0.01;
+
+      // drip "tick"
+      const osc = audio.ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(380, t0);
+      osc.frequency.exponentialRampToValueAtTime(120, t0 + 0.06);
+
+      const g = audio.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.10);
+
+      const f = audio.ctx.createBiquadFilter();
+      f.type="bandpass";
+      f.frequency.value = 650;
+      f.Q.value = 10;
+
+      osc.connect(f);
+      f.connect(g);
+      g.connect(audio.master);
+
+      osc.start(t0);
+      osc.stop(t0 + 0.12);
+    }
+
+    function startAudio(){
+      initAudio();
+      if(!audio.ctx) { toast("STATUS","Audio not supported in this browser.", false); return; }
+      audio.enabled = true;
+      audio.master.gain.value = 0.16;
+      toast("STATUS","Ambience online: low hum + intermittent water drips.", false);
+
+      // schedule drips
+      if(audio.dripTimer) clearInterval(audio.dripTimer);
+      audio.dripTimer = setInterval(()=>{
+        if(Math.random() < 0.55) drip();
+      }, 1800);
+    }
+
+    function stopAudio(){
+      audio.enabled = false;
+      if(audio.master) audio.master.gain.value = 0.0001;
+      if(audio.dripTimer) clearInterval(audio.dripTimer);
+      audio.dripTimer = null;
+      toast("STATUS","Ambience muted.", false);
+    }
+
+    // ---------- Jobs / Simulation ----------
+    function startJob(name, seconds=6, meta={}){
+      const id = `job_${Math.floor(Math.random()*1e9)}`;
+      const job = { id, name, started: now(), duration: seconds*1000, progress: 0, meta };
+      State.jobs.set(id, job);
+      logLine(`JOB START — ${name}`, "cyan");
+      postTelemetry({ type:"job_start", job });
+      return job;
+    }
+
+    function updateJobs(){
+      const t = now();
+      for(const [id, job] of State.jobs.entries()){
+        const p = clamp((t - job.started) / job.duration, 0, 1);
+        job.progress = p;
+        if(p >= 1){
+          State.jobs.delete(id);
+          logLine(`JOB COMPLETE — ${job.name}`, "cyan");
+          postTelemetry({ type:"job_done", job });
+        }
+      }
+    }
+
+    function bumpCircuitFlash(){
+      State.visual.circuitFlash = 1.0;
+    }
+
+    // ---------- Alerts ----------
+    function setAlert(active, msg, severity="orange"){
+      State.alert.active = active;
+      State.alert.msg = msg;
+      State.alert.severity = severity;
+      $("#alertHeader").textContent = active ? msg : "NO ACTIVE ALERT";
+      if(active){
+        toast("ALERT", msg, true);
+        $("#ledState").classList.add("warn");
+      } else {
+        $("#ledState").classList.remove("warn");
+      }
+    }
+
+    function evaluateAlerts(){
+      if(!State.ingressOnline){
+        setAlert(false, "NO ACTIVE ALERT");
+        return;
+      }
+      if(State.metrics.thermalC >= State.config.alertThermal){
+        setAlert(true, `THERMAL OVERLOAD — ${State.metrics.thermalC.toFixed(0)}C`, "orange");
+        return;
+      }
+      if(State.metrics.contamPct >= State.config.alertContam){
+        setAlert(true, `CONTAINMENT BREACH RISK — ${State.metrics.contamPct.toFixed(0)}%`, "orange");
+        return;
+      }
+      setAlert(false, "NO ACTIVE ALERT");
+    }
+
+    // ---------- UI Wiring ----------
+    function setIngress(on){
+      State.ingressOnline = on;
+      $("#ledIngress").classList.toggle("on", on);
+      $("#ingressText").textContent = on ? "ONLINE" : "OFFLINE";
+      $("#ingressHeader").textContent = on ? "ONLINE" : "OFFLINE";
+      State.stateText = on ? "ACTIVE" : "STANDBY";
+      $("#stateText").textContent = State.stateText;
+
+      if(on){
+        logLine(`INGRESS ONLINE — specimen ${State.target} bound to operating table.`, "cyan");
+      } else {
+        logLine(`INGRESS OFFLINE — operating table sealed.`, "muted");
+        State.metrics.viralRate = 0;
+        State.metrics.bufferPct = 0;
+        State.metrics.contamPct = 0;
+      }
+      postTelemetry({ type:"ingress", on });
+    }
+
+    function setTarget(val){
+      State.target = val.trim() || "—";
+      $("#targetLabel").textContent = State.target;
+      $("#activeTarget").textContent = State.target;
+      State.config.target = State.target;
+      saveConfig();
+      postTelemetry({ type:"target", target: State.target });
+      logLine(`TARGET SPECIMEN SET — ${State.target}`, "cyan");
+    }
+
+    function setBadge(id, text, cls=""){
+      const el = $(id);
+      el.textContent = text;
+      el.classList.remove("orange","cyan");
+      if(cls) el.classList.add(cls);
+    }
+
+    function switchInit(el, initial=false, mode="green"){
+      el.innerHTML = `<div class="knob"></div>`;
+      if(initial) el.classList.add("on");
+      if(mode==="warn") el.classList.add("warn");
+    }
+
+    function switchSet(el, on){
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-checked", String(on));
+    }
+
+    function bindSwitch(el, getter, setter){
+      el.addEventListener("click", ()=>{
+        const v = !getter();
+        setter(v);
+        switchSet(el, v);
+      });
+      el.addEventListener("keydown", (e)=>{
+        if(e.key===" " || e.key==="Enter"){
+          e.preventDefault();
+          el.click();
+        }
+      });
+      // init aria
+      el.setAttribute("role", "switch");
+      el.setAttribute("aria-checked", String(getter()));
+    }
+
+    // ---------- Actions (SAFE: UI simulation only) ----------
+    function action(name, detail={}){
+      // write to console + (optionally) post to backend
+      logLine(`ACTION — ${name} :: ${JSON.stringify(detail)}`, "muted");
+      postTelemetry({ type:"action", name, detail });
+
+      // optional backend action (high-level, no tool commands)
+      postAction({ name, detail }).then((res)=>{
+        if(res?.ok){
+          logLine(`BACKEND ACK — ${name}`, "cyan");
+        }
+      });
+    }
+
+    function simulateFinding(tag="INFO"){
+      const samples = [
+        `${tag}: anomalous response timing suggests throttled service path`,
+        `${tag}: entropy dip detected in handshake artifacts (synthetic)`,
+        `${tag}: certificate chain indicates legacy cipher fallback`,
+        `${tag}: directory surface shows misconfiguration pattern`,
+        `${tag}: memory region signature flags injection-sensitive offsets`,
+        `${tag}: packet stream reveals credential-like token structure`
+      ];
+      return pick(samples);
+    }
+
+    // ---------- Event Handlers ----------
+    function wireUI(){
+      // target set
+      $("#targetInput").addEventListener("change", (e)=> setTarget(e.target.value));
+      $("#btnArm").addEventListener("click", ()=> setIngress(true));
+      $("#btnDisarm").addEventListener("click", ()=> setIngress(false));
+
+      // audio toggle
+      $("#btnAudio").addEventListener("click", async ()=>{
+        initAudio();
+        if(audio.ctx && audio.ctx.state==="suspended"){
+          try{ await audio.ctx.resume(); }catch(e){}
+        }
+        if(!audio.enabled) startAudio();
+        else stopAudio();
+      });
+
+      // panic
+      $("#btnPanic").addEventListener("click", ()=>{
+        logLine("!! PANIC — emergency UI stop engaged; sealing channels.", "warn");
+        setIngress(false);
+        State.map.isolated = null;
+        State.visual.lens.active = false;
+        State.log.highlightCreds = false;
+        setBadge("#badgeW1","DORMANT");
+        setBadge("#badgeW2","SEALED","orange");
+        setBadge("#badgeW3","IDLE","cyan");
+        setBadge("#badgeW4","TAPPED");
+        toast("ALERT","PANIC engaged: ingress offline, visual taps reset.", true);
+      });
+
+      // console controls
+      $("#btnMark").addEventListener("click", mark);
+      $("#btnExport").addEventListener("click", exportLogs);
+      $("#btnClearConsole").addEventListener("click", ()=>{
+        State.log.lines = [];
+        renderTerminalFull();
+        toast("STATUS","Console cleared.", false);
+      });
+
+      // map controls
+      $("#chipPulse").addEventListener("click", ()=>{
+        bumpCircuitFlash();
+        seedMap(6 + Math.floor(rand(0,5)), "host");
+        logLine("DISCOVERY PULSE — topology expansion event recorded.", "cyan");
+      });
+      $("#chipStabilize").addEventListener("click", ()=>{
+        State.map.autoSpin = false;
+        toast("STATUS","Map stabilized (auto-spin disabled).", false);
+      });
+      $("#chipPurgeMap").addEventListener("click", ()=>{
+        resetMap();
+        toast("ALERT","Map purged. Topology wiped.", true);
+        logLine("TOPOLOGY PURGE — all nodes and edges cleared.", "warn");
+      });
+
+      // map interactions
+      mapCanvas.addEventListener("mousedown", (e)=>{
+        State.map.dragging = true;
+        State.map.last.x = e.clientX;
+        State.map.last.y = e.clientY;
+      });
+      window.addEventListener("mouseup", ()=> State.map.dragging=false);
+      window.addEventListener("mousemove", (e)=>{
+        if(!State.map.dragging) return;
+        const dx = e.clientX - State.map.last.x;
+        const dy = e.clientY - State.map.last.y;
+        State.map.last.x = e.clientX;
+        State.map.last.y = e.clientY;
+        State.map.rotY += dx * 0.006;
+        State.map.rotX += dy * 0.006;
+        State.map.rotX = clamp(State.map.rotX, -1.3, 1.3);
+      });
+      mapCanvas.addEventListener("wheel", (e)=>{
+        e.preventDefault();
+        const delta = Math.sign(e.deltaY);
+        State.map.zoom *= (delta>0 ? 0.92 : 1.08);
+        State.map.zoom = clamp(State.map.zoom, 0.55, 2.2);
+      }, { passive:false });
+
+      mapCanvas.addEventListener("click", (e)=>{
+        const node = mapPickNode(e.clientX, e.clientY);
+        if(!node){
+          State.map.isolated = null;
+          toast("STATUS","Isolation cleared.", false);
+          return;
+        }
+        if(State.map.isolated === node.id){
+          State.map.isolated = null;
+          toast("STATUS",`Isolation cleared.`, false);
+          return;
+        }
+        State.map.isolated = node.id;
+        toast("STATUS",`Isolated node: ${node.label}`, false);
+        logLine(`MAP ISOLATE — ${node.label}`, "cyan");
+      });
+
+      // ---------- Window 1 controls ----------
+      switchInit($("#swHashcatGPU"), false, "warn");
+      bindSwitch($("#swHashcatGPU"), ()=>State.switches.hashcatGPU, (v)=>{
+        State.switches.hashcatGPU = v;
+        action("GENOME_GPU_BREAKER", { enabled:v });
+        setBadge("#badgeW1", v ? "OVERDRIVE" : "DORMANT");
+        if(v){
+          logLine("GENOME SEQUENCER — High-voltage breaker engaged. Coils heating.", "warn");
+        } else {
+          logLine("GENOME SEQUENCER — breaker disengaged. Coils cooling.", "muted");
+        }
+      });
+
+      $("#selHashcatRule").addEventListener("change",(e)=>{
+        State.inputs.hashcatRule = e.target.value;
+        action("RULESET_SELECT", { strain: e.target.value });
+        logLine(`STRAIN SELECTED — ${e.target.value.toUpperCase()}`, "cyan");
+      });
+      State.inputs.hashcatRule = $("#selHashcatRule").value;
+
+      $("#txtGeneString").addEventListener("input",(e)=> State.inputs.geneString = e.target.value);
+      $("#btnPrimeGene").addEventListener("click", ()=>{
+        State.inputs.geneString = $("#txtGeneString").value.trim();
+        action("PRIME_VECTOR", { raw_gene_string: State.inputs.geneString || "(empty)" });
+        logLine(`VECTOR PRIMED — RAW GENE STRING: ${State.inputs.geneString || "(empty)"}`, "cyan");
+        State.metrics.mutationRate = clamp(State.metrics.mutationRate + rand(4,12), 0, 100);
+      });
+      $("#btnClearGene").addEventListener("click", ()=>{
+        $("#txtGeneString").value = "";
+        State.inputs.geneString = "";
+        logLine("VECTOR PURGE — RAW GENE STRING cleared.", "muted");
+      });
+
+      $("#btnJohnBasic").addEventListener("click", ()=>{
+        const job = startJob("CPU Decryptor — PROCESS-BASIC", 4.5, { module:"genome" });
+        setBadge("#badgeW1","PROCESSING");
+        action("CPU_DECRYPTOR_BASIC", {});
+        bumpCircuitFlash();
+        State.metrics.mutationRate = clamp(State.metrics.mutationRate + rand(6,18), 0, 100);
+      });
+
+      $("#btnJohnWifi").addEventListener("click", ()=>{
+        const chan = parseInt($("#txtWlanChan").value||"6",10);
+        const iface = $("#txtWlanIface").value.trim() || "wlan0";
+        startJob("WLAN Protocol Dissection (sim)", 5.5, { chan, iface });
+        action("WLAN_PROTOCOL_DISSECTION", { chan, iface });
+        logLine(`WLAN DISSECTION — iface=${iface}, chan=${chan}`, "cyan");
+        State.metrics.mutationRate = clamp(State.metrics.mutationRate + rand(3,10), 0, 100);
+      });
+
+      $("#btnResequence").addEventListener("click", ()=>{
+        startJob("Format Standardizer — RE-SEQUENCE", 2.8, {});
+        action("FORMAT_RESEQUENCE", {});
+        logLine("RE-SEQUENCE — format normalized to high-throughput schema (synthetic).", "cyan");
+        logLine("OUTPUT: $NETREAPER_FMT{hash:sha1, salt:none, mask:?a?a?a?a}", "muted");
+      });
+
+      $("#btnInject").addEventListener("click", ()=>{
+        const proto = $("#selHydraProto").value;
+        const speed = parseInt($("#numHydraSpeed").value||"120",10);
+        startJob(`Injector Nozzle — ${proto.toUpperCase()} (sim)`, 5.0, { proto, speed });
+        action("PROTOCOL_INJECTION_SIM", { proto, speed });
+        logLine(`INJECTOR NOZZLE — proto=${proto}, pressure=${speed} ipm`, "warn");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + rand(6,14), 0, 100);
+      });
+
+      let coverLifted=false;
+      $("#btnLiftCover").addEventListener("click", ()=>{
+        coverLifted = true;
+        $("#btnSSH").disabled = false;
+        logLine("SSH ISOLATION — safety cover lifted.", "yellow");
+        toast("STATUS","Cover lifted. Button armed.", false);
+      });
+      $("#btnSSH").addEventListener("click", ()=>{
+        if(!coverLifted) return;
+        startJob("SSH Isolation (sim)", 4.2, {});
+        action("SSH_ISOLATION_SIM", {});
+        logLine("SSH ISOLATION — caged button engaged (simulation).", "warn");
+        coverLifted = false;
+        $("#btnSSH").disabled = true;
+      });
+
+      $("#rngMedusa").addEventListener("input",(e)=>{
+        State.inputs.medusaX = parseInt(e.target.value,10);
+        $("#medusaVal").textContent = `${State.inputs.medusaX}x`;
+      });
+      $("#btnMedusa").addEventListener("click", ()=>{
+        action("MEDUSA_CONCURRENCY", { x: State.inputs.medusaX });
+        logLine(`CONCURRENCY SET — ${State.inputs.medusaX}x`, "cyan");
+      });
+
+      $("#btnSiphon").addEventListener("click", ()=>{
+        startJob("Secrets Siphon (sim)", 6.5, {});
+        action("DOMAIN_HASH_HARVEST_SIM", {});
+        logLine("SIPHON TUBE — drain initiated from directory reservoir (synthetic).", "cyan");
+        // map effect
+        seedMap(4, "host");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + rand(3,9), 0, 100);
+      });
+
+      // ---------- Window 3 controls ----------
+      $("#rngPortRange").addEventListener("input",(e)=>{
+        State.inputs.portMax = parseInt(e.target.value,10);
+        $("#portRangeVal").textContent = State.inputs.portMax;
+      });
+      $("#rngSvc").addEventListener("input",(e)=> $("#svcVal").textContent = e.target.value);
+      $("#rngOs").addEventListener("input",(e)=> $("#osVal").textContent = e.target.value);
+
+      switchInit($("#swSynGhost"), false);
+      bindSwitch($("#swSynGhost"), ()=>State.switches.synGhost, (v)=>{
+        State.switches.synGhost = v;
+        action("SYN_GHOST_TOGGLE", { enabled:v });
+        logLine(`SYN GHOST — ${v ? "ENABLED" : "DISABLED"}`, v ? "cyan" : "muted");
+      });
+
+      $("#btnQuickScan").addEventListener("click", ()=>{
+        setBadge("#badgeW3","SCANNING","cyan");
+        startJob("Rapid Diagnostic", 4.0, { portMax: 1024 });
+        action("RAPID_DIAGNOSTIC", { portMax: 1024 });
+        if(ws && ws.readyState === WebSocket.OPEN){
+          ws.send(JSON.stringify({command: `netreaper scan ${State.target}`}));
+          logLine(`Executing: netreaper scan ${State.target}`, "cyan");
+        } else {
+          logLine("WS not connected - cannot execute scan.", "warn");
+        }
+        seedMap(6 + Math.floor(rand(0,4)), "host");
+        bumpCircuitFlash();
+      });
+
+      $("#btnFullScan").addEventListener("click", ()=>{
+        setBadge("#badgeW3","SCANNING","cyan");
+        startJob("Full Spectral Sweep (sim)", 7.5, { portMax: State.inputs.portMax });
+        action("SPECTRAL_SWEEP_SIM", { portMax: State.inputs.portMax, ghost: State.switches.synGhost });
+        logLine(`SPECTRAL SWEEP — port range 1-${State.inputs.portMax} (${State.switches.synGhost ? "GHOST" : "STANDARD"})`, "cyan");
+        seedMap(10 + Math.floor(rand(0,8)), "host");
+        bumpCircuitFlash();
+      });
+
+      $("#btnUdp").addEventListener("click", ()=>{
+        startJob("UDP Protocol Analysis (sim)", 5.2, {});
+        action("UDP_ANALYSIS_SIM", {});
+        logLine("UDP ANALYSIS — opaque packets introduced to analyzer chamber.", "cyan");
+        State.metrics.bufferPct = clamp(State.metrics.bufferPct + rand(4,12), 0, 100);
+      });
+
+      $("#btnFingerprint").addEventListener("click", ()=>{
+        startJob("Fingerprinting (sim)", 4.6, {});
+        const svc = parseInt($("#rngSvc").value,10);
+        const os = parseInt($("#rngOs").value,10);
+        action("FINGERPRINT_SIM", { reagentService: svc, reagentOS: os });
+        logLine(`FINGERPRINT — reagents stable. SERVICE=${svc} OS=${os}`, "cyan");
+        logLine(`FINDING — ${simulateFinding("FPR")}`, "muted");
+      });
+
+      $("#btnMass").addEventListener("click", ()=>{
+        startJob("Velocity Injector (sim)", 3.6, {});
+        action("HYPERSPEED_DISCOVERY_SIM", {});
+        logLine("VELOCITY INJECTOR — hyperspeed discovery engaged.", "warn");
+        seedMap(22 + Math.floor(rand(0,12)), "host");
+        bumpCircuitFlash();
+        State.metrics.viralRate = clamp(State.metrics.viralRate + rand(120, 420), 0, 1800);
+      });
+
+      $("#btnDNS").addEventListener("click", ()=>{
+        startJob("DNS Zone Extraction (sim)", 5.8, {});
+        action("DNS_EXCAVATE_SIM", {});
+        logLine("ROOT EXCAVATOR — zone extraction initiated (synthetic).", "cyan");
+        const subs = ["api","dev","staging","vpn","mail","auth","cdn","intranet","portal","assets"];
+        for(let i=0;i<6;i++){
+          logLine(`SUBDOMAIN: ${pick(subs)}.${State.target.replace(/[:/].*$/,"")}`, "muted");
+        }
+      });
+
+      $("#btnTLS").addEventListener("click", ()=>{
+        startJob("Cipher Decipher Wheel (sim)", 4.9, {});
+        action("TLS_DECIPHER_SIM", {});
+        logLine("DECIPHER WHEEL — cipher suite testing (synthetic).", "cyan");
+        const ciphers = ["TLS_AES_128_GCM_SHA256","TLS_CHACHA20_POLY1305_SHA256","ECDHE_RSA_AES_256_GCM_SHA384","RSA_AES_128_CBC_SHA"];
+        for(let i=0;i<4;i++){
+          const c = ciphers[i];
+          const ok = (i<3);
+          logLine(`CIPHER: ${c} — ${ok ? "OK" : "LEGACY/WEAK"}`, ok ? "muted" : "warn");
+        }
+      });
+
+      $("#btnDirEnum").addEventListener("click", ()=>{
+        startJob("Directory Extractor (sim)", 6.3, {});
+        action("DIR_ENUM_SIM", {});
+        logLine("DIRECTORY EXTRACTOR — tray pulled from service cluster.", "cyan");
+        seedMap(5, "host");
+      });
+
+      // ---------- Window 2 controls ----------
+      $("#btnMSF").addEventListener("click", ()=>{
+        startJob("MSF Core Initiate (sim)", 5.2, {});
+        action("MSF_CORE_INIT_SIM", {});
+        logLine("MSF CORE — initialization sequence engaged (simulation).", "warn");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + rand(10,22), 0, 100);
+        setBadge("#badgeW2","ARMED","orange");
+      });
+
+      $("#btnVialRotate").addEventListener("click", ()=>{
+        const opts = ["windows","linux","php","android"];
+        const cur = $("#selPayload").value;
+        const idx = (opts.indexOf(cur) + 1) % opts.length;
+        $("#selPayload").value = opts[idx];
+        State.inputs.payload = opts[idx];
+        action("PAYLOAD_VIAL_ROTATE", { payload: State.inputs.payload });
+        logLine(`VIAL CAROUSEL — now selected: ${State.inputs.payload.toUpperCase()}`, "cyan");
+      });
+      $("#selPayload").addEventListener("change",(e)=> State.inputs.payload = e.target.value);
+
+      $("#btnGenerate").addEventListener("click", ()=>{
+        startJob("Payload Gene Generation (sim)", 4.8, { payload: State.inputs.payload });
+        action("PAYLOAD_GENE_GENERATE_SIM", { payload: State.inputs.payload });
+        const sig = `SIG-${Math.floor(Math.random()*1e6).toString(16).toUpperCase()}`;
+        logLine(`PAYLOAD SIGNATURE — ${State.inputs.payload.toUpperCase()} :: ${sig}`, "warn");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + rand(6,16), 0, 100);
+      });
+
+      $("#btnMacro").addEventListener("click", ()=>{
+        startJob("Macro Sequence (sim)", 7.2, {});
+        action("DEPLOY_MACRO_SIM", {});
+        logLine("MACRO SEQUENCE — deploy timeline initiated.", "cyan");
+        // timeline markers
+        setTimeout(()=>logLine("MACRO: Phase 1 — mapping injection zones...", "muted"), 400);
+        setTimeout(()=>logLine("MACRO: Phase 2 — stabilizing delivery vectors...", "muted"), 1200);
+        setTimeout(()=>logLine("MACRO: Phase 3 — triage templates applied...", "muted"), 2200);
+        bumpCircuitFlash();
+      });
+
+      $("#btnSQLBasic").addEventListener("click", ()=>{
+        startJob("SQL Sonar Pulse (sim)", 4.3, {});
+        action("SQLMAP_SONAR_SIM", {});
+        logLine("SONAR PULSE — reflective anomalies detected (synthetic).", "cyan");
+        logLine(`FINDING — ${simulateFinding("SQL")}`, "muted");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + rand(5,12), 0, 100);
+        bumpCircuitFlash();
+      });
+
+      $("#selDepth").addEventListener("change",(e)=> State.inputs.depth = e.target.value);
+      $("#btnSQLDeep").addEventListener("click", ()=>{
+        const depth = $("#selDepth").value;
+        const sec = depth==="abyssal" ? 9.0 : depth==="deep" ? 6.5 : 4.5;
+        startJob(`Protocol Scan (${depth.toUpperCase()}) (sim)`, sec, { depth });
+        action("SQLMAP_DEPTH_SIM", { depth });
+        logLine(`DEPTH LEVER — ${depth.toUpperCase()} descent engaged.`, "warn");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + (depth==="abyssal"?rand(16,28):depth==="deep"?rand(10,18):rand(6,12)), 0, 100);
+      });
+
+      // Nikto feed (synthetic)
+      function niktoPush(line){
+        const feed = $("#niktoFeed");
+        const div = document.createElement("div");
+        div.textContent = line;
+        feed.appendChild(div);
+        feed.scrollTop = feed.scrollHeight;
+        $("#niktoDirs").textContent = String(feed.children.length);
+        while(feed.children.length > 40) feed.removeChild(feed.firstChild);
+      }
+      setInterval(()=>{
+        if(Math.random() < 0.35){
+          const dirs = ["/admin","/login","/backup","/old","/test","/uploads","/api","/phpinfo.php","/.git/","/config"];
+          niktoPush(`DIRCHK: ${pick(dirs)} — ${pick(["200 OK","301 Redirect","403 Forbidden","404 Not Found"])}`);
+        }
+      }, 900);
+
+      $("#btnTriage").addEventListener("click", ()=>{
+        const templ = $("#selTemplate").value;
+        startJob(`Template Triage (${templ}) (sim)`, 4.8, { templ });
+        action("NUCLEI_TRIAGE_SIM", { templ });
+        logLine(`TRIAGE — template=${templ}`, "cyan");
+        for(let i=0;i<3;i++){
+          logLine(`TRIAGE: ${simulateFinding("NUC")}`, "muted");
+        }
+      });
+
+      $("#btnCommix").addEventListener("click", ()=>{
+        startJob("Digital Scalpel (sim)", 3.8, {});
+        action("COMMAND_GRAFT_SIM", {});
+        logLine("SCALPEL — graft attempt flagged as high-risk (simulation).", "warn");
+        logLine("SAFETY: No command execution performed in UI.", "muted");
+        State.metrics.contamPct = clamp(State.metrics.contamPct + rand(8,16), 0, 100);
+      });
+
+      $("#txtPathSeed").addEventListener("input",(e)=> State.inputs.pathSeed = e.target.value);
+      $("#btnDrill").addEventListener("click", ()=>{
+        startJob("Excavation Drill (sim)", 6.2, { base: State.inputs.pathSeed });
+        action("DIR_EXTRACT_SIM", { base: State.inputs.pathSeed });
+        logLine(`DRILL — excavating from ${State.inputs.pathSeed} (synthetic).`, "cyan");
+        const files = ["index.html","config.yml","backup.tar.gz","db.sql","admin.php","secrets.txt","assets/","uploads/"];
+        for(let i=0;i<5;i++){
+          logLine(`FOUND: ${State.inputs.pathSeed.replace(/\/$/,"")}/${pick(files)}`, (Math.random()<0.2) ? "warn" : "muted");
+        }
+      });
+
+      // ---------- Window 4 controls ----------
+      $("#selSiphon").addEventListener("change",(e)=> State.inputs.siphonMode = e.target.value);
+      $("#btnSiphonMode").addEventListener("click", ()=>{
+        action("PACKET_SIPHON_MODE", { mode: State.inputs.siphonMode });
+        logLine(`SIPHON MODE — ${State.inputs.siphonMode.toUpperCase()}`, "cyan");
+        setBadge("#badgeW4", State.inputs.siphonMode.toUpperCase());
+      });
+
+      $("#btnLens").addEventListener("click", ()=>{
+        State.visual.lens.active = true;
+        State.visual.lens.t = 0;
+        logLine("BIO-SCOPE LENS — focusing on raw stream.", "cyan");
+        action("LENS_EFFECT", { on:true });
+      });
+
+      $("#btnRewind").addEventListener("click", ()=>{
+        logLine("REEL — rewind filter applied (synthetic).", "muted");
+        State.metrics.bufferPct = clamp(State.metrics.bufferPct - rand(2,8), 0, 100);
+      });
+      $("#btnFF").addEventListener("click", ()=>{
+        logLine("REEL — fast-forward filter applied (synthetic).", "muted");
+        State.metrics.bufferPct = clamp(State.metrics.bufferPct + rand(2,8), 0, 100);
+      });
+      $("#btnHarvest").addEventListener("click", ()=>{
+        startJob("Tshark Harvest (sim)", 4.7, {});
+        action("TSHARK_HARVEST_SIM", {});
+        logLine("HARVEST — capture filtered and summarized.", "cyan");
+        logLine(`STATS: flows=${Math.floor(rand(40,220))}, anomalies=${Math.floor(rand(0,12))}`, "muted");
+      });
+
+      $("#btnAutopsy").addEventListener("click", ()=>{
+        const name = $("#txtPcapName").value.trim() || "capture.pcap";
+        startJob(`PCAP Autopsy (${name}) (sim)`, 5.5, { name });
+        action("PCAP_AUTOPSY_SIM", { name });
+        logLine(`PCAP AUTOPSY — ${name}`, "cyan");
+        for(let i=0;i<4;i++){
+          logLine(`AUTOPSY: ${simulateFinding("PCAP")}`, "muted");
+        }
+      });
+
+      $("#btnToxin").addEventListener("click", ()=>{
+        State.log.highlightCreds = !State.log.highlightCreds;
+        logLine(`TOXIN — credential highlighting ${State.log.highlightCreds ? "ENABLED" : "DISABLED"}.`, "warn");
+        action("CRED_HIGHLIGHT", { enabled: State.log.highlightCreds });
+        toast("ALERT", `Credential highlight ${State.log.highlightCreds ? "ON" : "OFF"}`, true);
+      });
+
+      $("#btnDiverter").addEventListener("click", ()=>{
+        startJob("Diverter Gate (sim)", 3.5, {});
+        action("DIVERTER_GATE_SIM", {});
+        logLine("DIVERTER GATE — traffic junction rerouted (visual only).", "warn");
+        State.metrics.bufferPct = clamp(State.metrics.bufferPct + rand(6,14), 0, 100);
+      });
+
+      $("#btnEcho").addEventListener("click", ()=>{
+        startJob("Echo Sounder (sim)", 4.1, {});
+        action("ECHO_SOUNDER_SIM", {});
+        logLine("ECHO — broadcast emitted; synthetic hashes captured.", "cyan");
+        const fake = ()=>Math.floor(Math.random()*16).toString(16);
+        for(let i=0;i<3;i++){
+          const hash = Array.from({length:32}, fake).join("").toUpperCase();
+          logLine(`CAPTURED HASH: ${hash} user=LAB\\user${Math.floor(rand(1,9))}`, "muted");
+        }
+      });
+
+      switchInit($("#swProxy"), false);
+      bindSwitch($("#swProxy"), ()=>State.switches.proxy, (v)=>{
+        State.switches.proxy = v;
+        action("PROXY_TOGGLE", { enabled:v });
+        logLine(`MUTATION CHAMBER — proxy ${v ? "ONLINE" : "OFFLINE"}.`, v ? "warn" : "muted");
+      });
+
+      // ---------- WLAN modal ----------
+      $("#btnWLAN").addEventListener("click", ()=> $("#modalWLAN").classList.add("show"));
+      $("#btnWlanClose").addEventListener("click", ()=> $("#modalWLAN").classList.remove("show"));
+      $("#modalWLAN").addEventListener("click", (e)=>{ if(e.target.id==="modalWLAN") $("#modalWLAN").classList.remove("show"); });
+
+      $("#btnMonStart").addEventListener("click", ()=>{
+        action("WLAN_MONITOR_MODE", { state:"START" });
+        logLine("RF LAB — monitor mode START (simulation).", "cyan");
+        seedMap(3, "ap");
+        bumpCircuitFlash();
+      });
+      $("#btnMonStop").addEventListener("click", ()=>{
+        action("WLAN_MONITOR_MODE", { state:"STOP" });
+        logLine("RF LAB — monitor mode STOP (simulation).", "muted");
+      });
+      $("#btnApplyFreq").addEventListener("click", ()=>{
+        const ch = parseInt($("#wlanChannel").value||"6",10);
+        const hop = $("#wlanHop").value;
+        action("WLAN_FREQUENCY", { channel: ch, mode: hop });
+        logLine(`RF LAB — frequency set: channel=${ch}, mode=${hop}`, "cyan");
+      });
+      $("#btnWlanDiscover").addEventListener("click", ()=>{
+        startJob("WLAN Discovery (sim)", 5.0, {});
+        action("WLAN_DISCOVERY_SIM", {});
+        logLine("WLAN DISCOVERY — APs & clients surfaced as bio-nodes.", "cyan");
+        seedMap(4, "ap");
+        seedMap(7, "client");
+      });
+      $("#btnHandshake").addEventListener("click", ()=>{
+        const bssid = $("#txtApBssid").value.trim();
+        startJob("Handshake Capture (sim)", 6.6, { bssid });
+        action("HANDSHAKE_CAPTURE_SIM", { bssid });
+        logLine(`HANDSHAKE CAPTURE — target=${bssid||"(auto)"} (synthetic).`, "cyan");
+        logLine("ARTIFACT: handshake.cap (synthetic) hash=deadbeef user=lab pass=********", "muted");
+      });
+      $("#btnConvertFmt").addEventListener("click", ()=>{
+        startJob("Format Conversion (sim)", 3.2, {});
+        action("HANDSHAKE_CONVERT_SIM", {});
+        logLine("FORMAT CONVERSION — handshake → high-throughput schema (synthetic).", "cyan");
+      });
+      $("#btnDeauth").addEventListener("click", ()=>{
+        startJob("Client Disruption (sim)", 3.8, {});
+        action("CLIENT_DISRUPTION_SIM", {});
+        logLine("CLIENT DISRUPTION — event emitted (visual only).", "warn");
+      });
+      $("#btnFakeAuth").addEventListener("click", ()=>{
+        startJob("Fake Authentication (sim)", 4.6, {});
+        action("FAKE_AUTH_SIM", {});
+        logLine("AUTH BYPASS — simulated handshake graft completed.", "warn");
+      });
+      $("#btnArpReplay").addEventListener("click", ()=>{
+        startJob("ARP Replay (sim)", 4.0, {});
+        action("ARP_REPLAY_SIM", {});
+        logLine("ARP INJECTION — legacy packet storm simulated.", "warn");
+        State.metrics.viralRate = clamp(State.metrics.viralRate + rand(80,240), 0, 1800);
+      });
+      $("#btnLegacy").addEventListener("click", ()=>{
+        startJob("Legacy Utility (sim)", 6.0, {});
+        action("LEGACY_UTILITY_SIM", {});
+        logLine("LEGACY UTILITY — compatibility routines executed (simulation).", "cyan");
+      });
+      $("#btnWifiGPU").addEventListener("click", ()=>{
+        startJob("GPU Accelerated WiFi (sim)", 5.4, {});
+        action("WIFI_GPU_ACCEL_SIM", {});
+        logLine(`GPU ACCEL — breaker ${State.switches.hashcatGPU ? "ONLINE" : "OFFLINE"} (simulation).`, "cyan");
+        State.metrics.mutationRate = clamp(State.metrics.mutationRate + (State.switches.hashcatGPU ? rand(14,24) : rand(6,14)), 0, 100);
+      });
+      $("#btnAutoChain").addEventListener("click", ()=>{
+        startJob("Automated Attack Chain (sim)", 9.0, {});
+        action("AUTO_CHAIN_SIM", {});
+        logLine("AUTO CHAIN — discovery → capture → convert → analyze (simulation).", "warn");
+        seedMap(3,"ap"); seedMap(5,"client");
+        bumpCircuitFlash();
+      });
+      $("#btnSaveRfNotes").addEventListener("click", ()=>{
+        State.config.notes.rf = $("#txtRfNotes").value;
+        saveConfig();
+        logLine("RF NOTES — saved to local storage.", "muted");
+        toast("STATUS","RF notes saved.", false);
+      });
+
+      // ---------- CORE modal ----------
+      $("#btnCore").addEventListener("click", ()=> $("#modalCore").classList.add("show"));
+      $("#btnCoreClose").addEventListener("click", ()=> $("#modalCore").classList.remove("show"));
+      $("#modalCore").addEventListener("click",(e)=>{ if(e.target.id==="modalCore") $("#modalCore").classList.remove("show"); });
+
+      $("#btnDeps").addEventListener("click", ()=>{
+        startJob("Validate Dependencies (browser audit)", 2.8, {});
+        const caps = {
+          canvas: !!document.createElement("canvas").getContext,
+          audio: !!(window.AudioContext || window.webkitAudioContext),
+          storage: (()=>{ try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }catch(e){ return false; } })(),
+          cryptoUUID: !!(crypto?.randomUUID),
+          dpr: window.devicePixelRatio || 1
+        };
+        action("VALIDATE_DEPENDENCIES", caps);
+        logLine(`DEP CHECK — canvas=${caps.canvas}, audio=${caps.audio}, storage=${caps.storage}, uuid=${caps.cryptoUUID}, dpr=${caps.dpr}`, "cyan");
+      });
+
+      $("#rngPerf").addEventListener("input",(e)=> $("#perfVal").textContent = e.target.value);
+      $("#btnApplyPerf").addEventListener("click", ()=>{
+        State.config.perfHz = parseInt($("#rngPerf").value,10);
+        saveConfig();
+        action("APPLY_PERF", { perfHz: State.config.perfHz });
+        logLine(`PERFORMANCE — tick rate set to ${State.config.perfHz}Hz`, "cyan");
+        toast("STATUS","Performance applied.", false);
+      });
+
+      $("#btnArchive").addEventListener("click", ()=>{
+        const data = snapshot();
+        downloadText(`netreaper_${State.sessionId}_archive.json`, JSON.stringify(data, null, 2));
+        logLine("LOG ARCHIVE — file prepared for download.", "cyan");
+      });
+      $("#btnPurge").addEventListener("click", ()=>{
+        State.log.lines = [];
+        renderTerminalFull();
+        resetMap();
+        logLine("LOG PURGE — wiped. (New session events begin now.)", "warn");
+        toast("ALERT","Logs purged.", true);
+      });
+
+      $("#btnUpdate").addEventListener("click", ()=>{
+        startJob("Module Update (sim)", 6.0, {});
+        action("MODULE_UPDATE_SIM", {});
+        logLine("UPDATE — fetching latest genome sequences (simulation).", "cyan");
+        setTimeout(()=>logLine("UPDATE: pull... verify... checksum OK", "muted"), 900);
+        setTimeout(()=>logLine("UPDATE: staging... applying schema patches...", "muted"), 1700);
+        setTimeout(()=>logLine("UPDATE: complete.", "cyan"), 3200);
+      });
+
+      $("#btnEnv").addEventListener("click", ()=>{
+        startJob("Environment Scan (sim)", 3.1, {});
+        action("ENV_SCAN_SIM", {});
+        const env = pick(["CONTAINER: DETECTED (synthetic)","VM: POSSIBLE (synthetic)","BARE METAL: LIKELY (synthetic)"]);
+        logLine(`ENV CONTROL — ${env}`, "cyan");
+      });
+
+      switchInit($("#swHooks"), false);
+      bindSwitch($("#swHooks"), ()=>State.config.hooksEnabled, (v)=>{
+        State.config.hooksEnabled = v;
+        saveConfig();
+        action("HOOKS_TOGGLE", { enabled:v });
+        logLine(`BACKEND HOOKS — ${v ? "ENABLED" : "DISABLED"}`, v ? "warn" : "muted");
+        toast("STATUS", `Backend hooks ${v ? "enabled" : "disabled"}.`, false);
+      });
+
+      $("#selProfile").addEventListener("change",(e)=> State.config.profile = e.target.value);
+      $("#btnApplyProfile").addEventListener("click", ()=>{
+        saveConfig();
+        $("#profileLabel").textContent = State.config.profile;
+        action("PROFILE_APPLY", { profile: State.config.profile });
+        logLine(`PROFILE — ${State.config.profile} applied.`, "cyan");
+        toast("STATUS", `Profile set: ${State.config.profile}`, false);
+      });
+
+      $("#btnSaveConfig").addEventListener("click", ()=>{
+        try{
+          const cfg = JSON.parse($("#txtConfig").value);
+          State.config = {...DEFAULT_CONFIG(), ...cfg, ui:{...DEFAULT_CONFIG().ui, ...(cfg.ui||{})}, notes:{...DEFAULT_CONFIG().notes, ...(cfg.notes||{})}};
+          saveConfig();
+          applyConfigToUI();
+          logLine("CONFIG — saved and applied.", "cyan");
+          toast("STATUS","Config saved.", false);
+        }catch(e){
+          toast("ALERT","Config JSON invalid. Not saved.", true);
+          logLine("CONFIG ERROR — invalid JSON. Save aborted.", "warn");
+        }
+      });
+      $("#btnResetConfig").addEventListener("click", ()=>{
+        State.config = DEFAULT_CONFIG();
+        saveConfig();
+        applyConfigToUI();
+        logLine("CONFIG — reset to defaults.", "warn");
+        toast("ALERT","Config reset.", true);
+      });
+
+      // WLAN notes load
+      $("#txtRfNotes").addEventListener("input",(e)=> State.config.notes.rf = e.target.value);
+
+      // Keyboard shortcuts
+      window.addEventListener("keydown",(e)=>{
+        if(e.key==="Escape"){
+          $("#modalWLAN").classList.remove("show");
+          $("#modalCore").classList.remove("show");
+        }
+        if(e.ctrlKey && e.key.toLowerCase()==="m"){
+          e.preventDefault();
+          mark();
+        }
+      });
+    }
+
+    // ---------- Apply config to UI ----------
+    function applyConfigToUI(){
+      $("#targetInput").value = State.config.target || State.target;
+      setTarget(State.config.target || State.target);
+
+      $("#selProfile").value = State.config.profile;
+      $("#profileLabel").textContent = State.config.profile;
+
+      $("#rngPerf").value = String(State.config.perfHz);
+      $("#perfVal").textContent = String(State.config.perfHz);
+
+      // hooks
+      switchSet($("#swHooks"), !!State.config.hooksEnabled);
+
+      // RF notes
+      $("#txtRfNotes").value = State.config.notes.rf || "";
+
+      // config editor display
+      $("#txtConfig").value = JSON.stringify(State.config, null, 2);
+
+      // map settings
+      State.map.zoom = clamp(State.config.ui.map.zoom || 1.0, 0.55, 2.2);
+      State.map.autoSpin = !!State.config.ui.map.autoSpin;
+    }
+
+    // ---------- Ingest stream simulation ----------
+    let ingestAccumulator = 0;
+    function ingestTick(dt){
+      if(!State.ingressOnline){
+        $("#ingestRate").textContent = "0";
+        return;
+      }
+
+      // profile tuning
+      const prof = State.config.profile;
+      const baseRate = prof==="DIAGNOSTIC" ? 8 : prof==="LAB_SAFE" ? 12 : 18;
+      const jitter = prof==="OPERATOR" ? 18 : 12;
+
+      // intensity from active switches/jobs
+      let intensity = 1.0;
+      intensity += State.switches.hashcatGPU ? 0.7 : 0.0;
+      intensity += State.switches.proxy ? 0.2 : 0.0;
+      intensity += Math.min(1.5, State.jobs.size * 0.18);
+
+      // synth metrics drift
+      const thermalTarget = 26 + intensity*18 + (State.switches.hashcatGPU ? 18 : 0) + rand(-1,2);
+      State.metrics.thermalC = lerp(State.metrics.thermalC, thermalTarget, clamp(dt*1.4,0,1));
+
+      const viralTarget = clamp((baseRate*jitter*intensity) + rand(-18, 20), 0, 1800);
+      State.metrics.viralRate = lerp(State.metrics.viralRate, viralTarget, clamp(dt*1.2,0,1));
+
+      const bufTarget = clamp((State.metrics.viralRate/18) + rand(-4,6), 0, 100);
+      State.metrics.bufferPct = lerp(State.metrics.bufferPct, bufTarget, clamp(dt*0.9,0,1));
+
+      // contamination creeps up when exploit-like actions happen (sim)
+      const contamDrift = (State.jobs.size>0 ? 0.18 : 0.08) * intensity;
+      State.metrics.contamPct = clamp(State.metrics.contamPct + contamDrift * (dt*60) + rand(-0.4,0.6), 0, 100);
+
+      // mutation rate (from genome actions)
+      State.metrics.mutationRate = clamp(State.metrics.mutationRate + (State.switches.hashcatGPU ? 0.10 : 0.05) * (dt*60) - 0.03*(dt*60), 0, 100);
+
+      // emit lines
+      const linesPerSec = baseRate * intensity;
+      ingestAccumulator += linesPerSec * dt;
+      const emit = Math.floor(ingestAccumulator);
+      ingestAccumulator -= emit;
+
+      $("#ingestRate").textContent = String(Math.floor(linesPerSec));
+
+      for(let i=0;i<emit;i++){
+        const roll = Math.random();
+        const kinds = [
+          { cls:"", txt:`INGEST: pkt=${Math.floor(rand(1000,9999))} src=${pick(["10.0.0."+Math.floor(rand(2,254)),"172.16.0."+Math.floor(rand(2,254)),"192.168.1."+Math.floor(rand(2,254))])} -> dst=${State.target} ttl=${Math.floor(rand(32,128))}` },
+          { cls:"muted", txt:`TRACE: vector=${pick(["synapse","axon","glomerulus","lattice","microtrace"])} latency=${rand(2.1,42.8).toFixed(1)}ms jitter=${rand(0.2,7.3).toFixed(1)}ms` },
+          { cls:"muted", txt:`DIAG: buffer=${State.metrics.bufferPct.toFixed(0)}% thermal=${State.metrics.thermalC.toFixed(1)}C contam=${State.metrics.contamPct.toFixed(0)}%` },
+          { cls:"cyan", txt:`MAP: host_signal=${pick(["weak","stable","strong"])} nodes=${State.map.nodes.length} edges=${State.map.edges.length}` }
+        ];
+
+        // occasionally "credential-like" artifacts
+        if(roll > 0.985){
+          const u = `user${Math.floor(rand(1,10))}`;
+          const tok = Math.floor(rand(1e6,9e6)).toString(16);
+          logLine(`CAPTURE: token=${tok} user=${u} pass=********`, "muted");
+          continue;
+        }
+
+        // occasional warnings
+        if(roll < 0.02 && State.metrics.contamPct > 55){
+          logLine(`WARNING: containment microfracture detected at sector ${pick(["C-7","D-2","A-9","B-4"])}`, "warn");
+          continue;
+        }
+
+        const k = pick(kinds);
+        logLine(k.txt, k.cls);
+      }
+
+      // update metric labels
+      $("#cpuVal").textContent = State.metrics.thermalC.toFixed(0);
+      $("#vvVal").textContent = State.metrics.viralRate.toFixed(0);
+      $("#bufVal").textContent = State.metrics.bufferPct.toFixed(0);
+
+      evaluateAlerts();
+    }
+
+    // ---------- Main loop ----------
+    let lastT = now();
+    function frame(){
+      const t = now();
+      const dt = Math.min(0.05, (t - lastT) / 1000);
+      lastT = t;
+
+      // perf throttling
+      const hz = clamp(State.config.perfHz, 10, 120);
+      // run simulation at requested Hz using accumulator
+      frame.acc = (frame.acc || 0) + dt;
+      const step = 1 / hz;
+      while(frame.acc >= step){
+        // core ticks
+        ingestTick(step);
+        updateJobs();
+        maybeFlashCircuits();
+
+        // map physics
+        if(State.map.nodes.length){
+          stepMapPhysics(step);
+          if(State.map.autoSpin){
+            State.map.rotY += step * 0.35;
+            State.map.rotX += step * 0.12 * Math.sin(t*0.0002);
+          }
+        }
+        frame.acc -= step;
+      }
+
+      // draw visuals every RAF
+      drawHexLattice();
+      drawCircuitFlashes();
+      drawThermal();
+      drawEKG();
+      drawCyl();
+      drawGenomeViz();
+      drawReconViz();
+      drawExploitViz();
+      drawTrafficViz();
+      drawMap();
+
+      // update badges lightly based on jobs
+      if(State.jobs.size===0){
+        if($("#badgeW3").textContent==="SCANNING") setBadge("#badgeW3","IDLE","cyan");
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Boot ----------
+    function boot(){
+      loadConfig();
+      initGauges();
+      resizeSubstrate();
+      window.addEventListener("resize", resizeSubstrate);
+
+      // connect WS
+      connectWS();
+
+      // init switch DOM
+      switchInit($("#swHashcatGPU"), false, "warn");
+      switchInit($("#swSynGhost"), false);
+      switchInit($("#swProxy"), false);
+      switchInit($("#swHooks"), false);
+
+      wireUI();
+      applyConfigToUI();
+
+      // initial labels
+      $("#targetLabel").textContent = State.target;
+      $("#activeTarget").textContent = State.target;
+      $("#ingressHeader").textContent = "OFFLINE";
+      $("#ingressText").textContent = "OFFLINE";
+      $("#stateText").textContent = "STANDBY";
+
+      // seed initial map and console
+      logLine(`BOOT — NETREAPER v.25 BIOTECH interface loaded. session=${State.sessionId}`, "cyan");
+      logLine("SAFETY — This UI now executes real CLI commands via WS. Use with caution.", "warn");
+      seedMap(8, "host");
+
+      // start loop
+      requestAnimationFrame(frame);
+    }
+
+    boot();
+  </script>
+</body>
+</html> 
+
+<xai:function_call name="apply_diff">
+<parameter name="path">server/main.py

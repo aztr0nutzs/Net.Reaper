@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NETREAPER • Holographic WiFi Map</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div id="spinner" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 4px solid rgba(0,255,255,.3); border-top: 4px solid rgba(0,255,255,.9); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+  <style>
+    @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+  </style>
+
+  <div id="hud">
+    <div class="brand">
+      <div class="title">NETREAPER</div>
+      <div class="subtitle">Holographic WiFi Discovery Map</div>
+    </div>
+
+    <div class="row">
+      <button id="btnReload" title="Reload latest scan data">Reload</button>
+      <label class="toggle">
+        <input id="chkAuto" type="checkbox" checked />
+        <span>Auto-refresh</span>
+      </label>
+      <label class="field">
+        <span>Every</span>
+        <input id="inpInterval" type="number" min="1" max="30" value="2" />
+        <span>s</span>
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="btnFilterWPA2" title="Show only WPA2 networks">WPA2</button>
+      <button id="btnFilterOpen" title="Show only open networks">Open</button>
+      <button id="btnFilterAll" title="Show all networks">All</button>
+      <button id="btnExport" title="Export data as JSON">Export</button>
+      <button id="btnTheme" title="Toggle theme">Theme</button>
+    </div>
+
+    <div class="panel">
+      <div class="panelTitle">Selection</div>
+      <pre id="sel">Click a node…</pre>
+    </div>
+
+    <div class="hint">
+      Drag: rotate • Wheel: zoom • Click: select • R: reset view
+    </div>
+
+    <div class="footer">
+      <span id="status">Loading…</span>
+    </div>
+  </div>
+
+  <script src="./map.js"></script>
+</body>
+</html>

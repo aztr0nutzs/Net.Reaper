@@ -1650,29 +1650,6 @@ install_essentials() {
     show_install_summary
 }
 
-install_gui_support() {
-    echo
-    echo -e "    ${C_CYAN}[*]${C_RESET} Installing GUI dependencies (PyQt6)..."
-
-    if ! command -v python3 &>/dev/null; then
-        log_error "python3 is not installed"
-        return 1
-    fi
-
-    # Ensure system detection is initialized so we can provide context
-    init_system >/dev/null 2>&1 || true
-
-    if python3 -m pip install PyQt6 PyQt6-sip &>/dev/null; then
-        log_success "PyQt6 GUI dependencies installed"
-        log_info "You can now run 'netreaper gui' or 'netreaper-gui'"
-        return 0
-    fi
-
-    log_error "Failed to install PyQt6 dependencies"
-    log_info "Run manually: python3 -m pip install PyQt6 PyQt6-sip"
-    return 1
-}
-
 show_status() {
     echo
     echo -e "    ${C_BLUE}━━━ ARSENAL STATUS ━━━${C_RESET}"
@@ -1997,7 +1974,6 @@ show_menu() {
         echo -e "    ${C_SHADOW}[7]${C_RESET} Install CREDENTIALS    ${C_SHADOW}hashcat, john, hydra...${C_RESET}"
         echo -e "    ${C_SHADOW}[8]${C_RESET} Install OSINT          ${C_SHADOW}theharvester, recon-ng...${C_RESET}"
         echo -e "    ${C_SHADOW}[9]${C_RESET} Install TRAFFIC        ${C_SHADOW}tcpdump, wireshark...${C_RESET}"
-        echo -e "    ${C_SHADOW}[G]${C_RESET} Install GUI frontend dependencies${C_RESET}"
         echo
         echo -e "    ${C_SHADOW}[S]${C_RESET} Show status"
         echo -e "    ${C_SHADOW}[U]${C_RESET} Uninstall tools"
@@ -2016,7 +1992,6 @@ show_menu() {
             7) preflight_checks; install_category "creds"; show_install_summary ;;
             8) preflight_checks; install_category "osint"; show_install_summary ;;
             9) preflight_checks; install_category "traffic"; show_install_summary ;;
-            g|G) preflight_checks; install_gui_support ;;
             s|S) show_status ;;
             u|U) init_system; uninstall_menu ;;
             q|Q) exit 0 ;;
@@ -2047,7 +2022,6 @@ show_usage() {
     echo "    creds        Install credential tools"
     echo "    osint        Install OSINT tools"
     echo "    traffic      Install traffic tools"
-    echo "    gui          Install GUI dependencies (PyQt6)"
     echo "    status       Show installation status"
     echo "    menu         Interactive menu (default)"
     echo
@@ -2112,10 +2086,6 @@ main() {
             preflight_checks
             install_category "traffic"
             show_install_summary
-            ;;
-        gui)
-            preflight_checks
-            install_gui_support
             ;;
         status)
             init_system

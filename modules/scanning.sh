@@ -79,7 +79,17 @@ run_nmap_quick() {
     log_command_preview "nmap -T4 -F -oX $outfile $target"
     log_audit "SCAN" "nmap_quick" "$target"
 
-    nmap -T4 -F -oX "$outfile" "$target"
+    if ! nmap -T4 -F -oX "$outfile" "$target"; then
+        log_warning "Nmap quick scan failed, trying masscan..."
+        if check_tool "masscan"; then
+            require_root || return 1
+            log_command_preview "masscan -p1-1024 --rate=1000 -oX $outfile $target"
+            masscan -p1-1024 --rate=1000 -oX "$outfile" "$target"
+        else
+            log_error "No fallback scanner available"
+            return 1
+        fi
+    fi
 
     local duration
     duration=$(elapsed_time "$start_time")
@@ -102,10 +112,31 @@ run_nmap_full() {
     local outfile
     outfile=$(generate_target_filename "$target" "nmap_full" "xml")
 
+    # Check cache (1 hour)
+    local cache_dir="${HOME}/.netreaper/cache/scans"
+    mkdir -p "$cache_dir" 2>/dev/null || true
+    local cache_file="${cache_dir}/$(echo "$target" | md5sum | cut -d' ' -f1)_full.xml"
+    if [[ -f "$cache_file" && $(find "$cache_file" -mmin -60 2>/dev/null) ]]; then
+        log_info "Using cached full scan for $target"
+        cp "$cache_file" "$outfile" 2>/dev/null || true
+        local duration
+        duration=$(elapsed_time "$start_time")
+        operation_summary "success" "Nmap Full (cached)" "Output: $outfile\nDuration: $duration"
+        log_loot "Nmap results: $outfile"
+        return 0
+    fi
+
     log_command_preview "nmap -sS -sV -sC -A -p- -oX $outfile $target"
     log_audit "SCAN" "nmap_full" "$target"
 
-    nmap -sS -sV -sC -A -p- -oX "$outfile" "$target"
+    if check_tool "pv"; then
+        nmap -sS -sV -sC -A -p- -oX "$outfile" "$target" 2>&1 | pv -l -N "Scanning $target" > /dev/null
+    else
+        nmap -sS -sV -sC -A -p- -oX "$outfile" "$target"
+    fi
+
+    # Save to cache
+    cp "$outfile" "$cache_file" 2>/dev/null || true
 
     local duration
     duration=$(elapsed_time "$start_time")
@@ -536,6 +567,14 @@ run_rpc_enum() {
 # SCANNING MENU
 #═══════════════════════════════════════════════════════════════════════════════
 
+# Get recent targets from history
+get_recent_targets() {
+    local history_file="${HOME}/.netreaper/history/scans.log"
+    if [[ -f "$history_file" ]]; then
+        tail -10 "$history_file" | awk '{print $3}' | sort | uniq -c | sort -nr | head -5 | awk '{print $2}'
+    fi
+}
+
 # Interactive scanning menu
 scanning_menu() {
     local target=""
@@ -547,27 +586,71 @@ scanning_menu() {
         echo -e "    ${C_CYAN}╠═══════════════════════════════════════════════════════════════════╣${C_RESET}"
         echo -e "    ${C_CYAN}║${C_RESET}                                                                   ${C_CYAN}║${C_RESET}"
         echo -e "    ${C_CYAN}║${C_RESET}   ${C_SHADOW}──── Port Scanning ────${C_RESET}                                       ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[1]${C_RESET} Quick Scan              ${C_SHADOW}nmap -T4 -F${C_RESET}                     ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[2]${C_RESET} Full Scan               ${C_SHADOW}nmap -sS -sV -sC -A -p-${C_RESET}         ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[3]${C_RESET} Stealth Scan            ${C_SHADOW}nmap -sS -T2 -f${C_RESET}                 ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[4]${C_RESET} UDP Scan                ${C_SHADOW}nmap -sU --top-ports${C_RESET}            ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[5]${C_RESET} Vuln Scan               ${C_SHADOW}nmap --script vuln${C_RESET}              ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[6]${C_RESET} Masscan                 ${C_SHADOW}masscan --rate 10000${C_RESET}            ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[7]${C_RESET} Rustscan                ${C_SHADOW}fast + nmap${C_RESET}                     ${C_CYAN}║${C_RESET}"
+        if check_tool "nmap"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[1]${C_RESET} Quick Scan              ${C_SHADOW}nmap -T4 -F${C_RESET}                     ${C_CYAN}║${C_RESET}"
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[2]${C_RESET} Full Scan               ${C_SHADOW}nmap -sS -sV -sC -A -p-${C_RESET}         ${C_CYAN}║${C_RESET}"
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[3]${C_RESET} Stealth Scan            ${C_SHADOW}nmap -sS -T2 -f${C_RESET}                 ${C_CYAN}║${C_RESET}"
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[4]${C_RESET} UDP Scan                ${C_SHADOW}nmap -sU --top-ports${C_RESET}            ${C_CYAN}║${C_RESET}"
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[5]${C_RESET} Vuln Scan               ${C_SHADOW}nmap --script vuln${C_RESET}              ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[1-5]${C_RESET} Nmap scans             ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
+        if check_tool "masscan"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[6]${C_RESET} Masscan                 ${C_SHADOW}masscan --rate 10000${C_RESET}            ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[6]${C_RESET} Masscan                 ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
+        if check_tool "rustscan"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[7]${C_RESET} Rustscan                ${C_SHADOW}fast + nmap${C_RESET}                     ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[7]${C_RESET} Rustscan                ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
         echo -e "    ${C_CYAN}║${C_RESET}                                                                   ${C_CYAN}║${C_RESET}"
         echo -e "    ${C_CYAN}║${C_RESET}   ${C_SHADOW}──── Service Enumeration ────${C_RESET}                                 ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[8]${C_RESET} Service Detection       ${C_SHADOW}nmap -sV${C_RESET}                        ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[9]${C_RESET} OS Detection            ${C_SHADOW}nmap -O${C_RESET}                         ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[10]${C_RESET} SMB Enumeration        ${C_SHADOW}enum4linux${C_RESET}                      ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[11]${C_RESET} SNMP Enumeration       ${C_SHADOW}snmp-check${C_RESET}                      ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[12]${C_RESET} LDAP Enumeration       ${C_SHADOW}ldapsearch${C_RESET}                      ${C_CYAN}║${C_RESET}"
-        echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[13]${C_RESET} NFS Enumeration        ${C_SHADOW}showmount${C_RESET}                       ${C_CYAN}║${C_RESET}"
+        if check_tool "nmap"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[8]${C_RESET} Service Detection       ${C_SHADOW}nmap -sV${C_RESET}                        ${C_CYAN}║${C_RESET}"
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[9]${C_RESET} OS Detection            ${C_SHADOW}nmap -O${C_RESET}                         ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[8-9]${C_RESET} Nmap detection         ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
+        if check_tool "enum4linux-ng" || check_tool "enum4linux" || check_tool "smbclient"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[10]${C_RESET} SMB Enumeration        ${C_SHADOW}enum4linux${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[10]${C_RESET} SMB Enumeration        ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
+        if check_tool "snmp-check" || check_tool "snmpwalk"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[11]${C_RESET} SNMP Enumeration       ${C_SHADOW}snmp-check${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[11]${C_RESET} SNMP Enumeration       ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
+        if check_tool "ldapsearch"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[12]${C_RESET} LDAP Enumeration       ${C_SHADOW}ldapsearch${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[12]${C_RESET} LDAP Enumeration       ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
+        if check_tool "showmount"; then
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_GHOST}[13]${C_RESET} NFS Enumeration        ${C_SHADOW}showmount${C_RESET}                       ${C_CYAN}║${C_RESET}"
+        else
+            echo -e "    ${C_CYAN}║${C_RESET}   ${C_RED}[13]${C_RESET} NFS Enumeration        ${C_SHADOW}unavailable${C_RESET}                      ${C_CYAN}║${C_RESET}"
+        fi
         echo -e "    ${C_CYAN}║${C_RESET}                                                                   ${C_CYAN}║${C_RESET}"
         echo -e "    ${C_CYAN}║${C_RESET}                       ${C_RED}[B] ← Back${C_RESET}                                  ${C_CYAN}║${C_RESET}"
         echo -e "    ${C_CYAN}╚═══════════════════════════════════════════════════════════════════╝${C_RESET}"
         echo
+        # Show recent targets
+        local recent
+        recent=$(get_recent_targets)
+        if [[ -n "$recent" ]]; then
+            echo -e "    ${C_SHADOW}Recent targets:${C_RESET}"
+            echo "$recent" | while read -r tgt; do
+                echo -e "    ${C_GHOST}• $tgt${C_RESET}"
+            done
+            echo
+        fi
         echo -ne "    ${C_CYAN}▶${C_RESET} "
         read -r choice
+
+        log_audit "SCANNING" "menu_selection" "$choice"
 
         case "$choice" in
             1|2|3|4|5|6|7|8|9|10|11|12|13)

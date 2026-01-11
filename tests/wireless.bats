@@ -167,3 +167,18 @@ setup() {
     run bash -n "$NETREAPER_ROOT/lib/wireless.sh"
     [ "$status" -eq 0 ]
 }
+
+@test "wifi help includes scan and map subcommands" {
+    run "$NETREAPER" wifi
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"scan [iface]"* ]]
+    [[ "$output" == *"map [port]"* ]]
+}
+
+@test "wifi map --help prints usage" {
+    run "$NETREAPER" wifi map --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Usage:"* ]]
+    [[ "$output" == *"netreaper wifi map"* ]]
+}
+

@@ -93,6 +93,7 @@ declare -gA DEFAULT_CONFIG=(
     [default_wordlist]="/usr/share/wordlists/rockyou.txt"
     [non_interactive_default_index]="0"
     [unsafe_mode]="false"
+    [lite_mode]="false"
 )
 
 # Ordered list of default keys (for consistent file output)
@@ -104,6 +105,7 @@ declare -ga DEFAULT_CONFIG_KEYS=(
     "warn_public_ip"
     "default_wordlist"
     "non_interactive_default_index"
+    "lite_mode"
     "unsafe_mode"
 )
 
@@ -215,6 +217,9 @@ create_default_config() {
         echo "warn_public_ip=${DEFAULT_CONFIG[warn_public_ip]}"
         echo ""
         echo "# Disable safety checks (NOT RECOMMENDED)"
+echo "# Enable lite mode for low-resource systems"
+echo "lite_mode=${DEFAULT_CONFIG[lite_mode]}"
+echo ""
         echo "# Can also be set via NR_UNSAFE_MODE=1 environment variable"
         echo "unsafe_mode=${DEFAULT_CONFIG[unsafe_mode]}"
         echo ""

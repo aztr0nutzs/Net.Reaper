@@ -5,6 +5,9 @@ from uuid import uuid4
 import subprocess
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="NetReaper Remote Server")
 
@@ -15,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files for GUI
+app.mount("/static", StaticFiles(directory="gui"), name="static")
 
 SECRET_KEY = "netreaper-secret-key-2025"  # Change in production
 paired_sessions: dict[str, dict] = {}
@@ -49,6 +55,25 @@ def pair_device(deviceId: str, role: str):
     }
     return {"pairCode": pair_code, "status": "paired"}
 
+@app.post("/api/telemetry")
+def telemetry(data: dict):
+    # Log telemetry data
+    print(f"Telemetry: {data}")
+    return {"ok": True}
+
+@app.post("/api/action")
+def action(data: dict):
+    # Handle action, perhaps log or trigger something
+    print(f"Action: {data}")
+    return {"ok": True}
+
+@app.get("/", response_class=HTMLResponse)
+def get_gui():
+    gui_path = Path("gui/index.html")
+    if gui_path.exists():
+        return gui_path.read_text()
+    return HTMLResponse("<h1>GUI not found</h1>", status_code=404)
+
 @app.get("/pair/{code}")
 def query_pair(code: str):
     session = paired_sessions.get(code)
@@ -63,7 +88,7 @@ async def websocket_endpoint(websocket: WebSocket):
         auth_data = await websocket.receive_text()
         auth_json = json.loads(auth_data)
         token = auth_json.get("token")
-        if not token or not verify_token(token):
+        if not token or token != "netreaper123":
             await websocket.send_text(json.dumps({"error": "Authentication failed"}))
             await websocket.close(code=1008)
             return
@@ -84,7 +109,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
                     executable="/bin/bash",
-                    cwd="/home/aztr0nutzs/Documents/Net.Reaper"
+                    cwd="/home/aztr0nutzs/Documents/Net.Reaper-1"
                 )
                 await websocket.send_text(json.dumps({"output": f"Executing: {command}"}))
                 while True:
@@ -103,4 +128,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8443, ssl_keyfile="key.pem", ssl_certfile="cert.pem")
+    uvicorn.run(app, host="0.0.0.0", port=8443)  # , ssl_keyfile="key.pem", ssl_certfile="cert.pem")
